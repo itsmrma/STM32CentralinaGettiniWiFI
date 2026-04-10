@@ -399,27 +399,52 @@ void ApplyIrrigationControl(void) {
  * Formula: (100-Umidità) + (Temp*2) - (PioggiaProb) + (CorrezionePressione)
  */
 int CalculateSmartScore(float t, float h, float p, int rain_prob) {
-    int score = 0;
+    // 1. Normalizzazione degli input per sicurezza
+    if (h < 0.0f) h = 0.0f;
+    if (h > 100.0f) h = 100.0f;
+    if (rain_prob < 0) rain_prob = 0;
+    if (rain_prob > 100) rain_prob = 100;
 
-    if (h < 0) h = 0;
-    if (h > 100) h = 100;
-    score += (100 - (int)h);
-
-    if (t > 0) {
-        score += ((int)t* 2);
+    // 2. Fattore Temperatura (0-100)
+    // Sotto i 10 gradi il bisogno è 0. A 40 gradi il bisogno è massimo (100).
+    float t_factor = 0.0f;
+    if (t > 10.0f) {
+        t_factor = (t - 10.0f) * (100.0f / 30.0f); // Mappa 10->0, 40->100
+        if (t_factor > 100.0f) t_factor = 100.0f;
     }
 
-    score -= rain_prob;
+    // 3. Fattore Umidità (0-100)
+    // Più è bassa l'umidità, più sale il bisogno.
+    float h_factor = 100.0f - h;
 
-    if (p < 1000.0f) {
-        score -= 30; // Forte depressione, pioggia imminente
-    } else if (p < 1010.0f) {
-        score -= 10;
-    } else if (p > 1020.0f) {
-        score += 10; // Alta pressione, sereno
+    // 4. Bisogno Base (Media pesata)
+    // Diamo più peso alla temperatura (es. 65%) che all'umidità (35%).
+    // Puoi variare questi pesi (es. 0.6f e 0.4f) basta che la somma faccia 1.0.
+    float base_need = (t_factor * 0.65f) + (h_factor * 0.35f);
+
+    // 5. Correzione Pioggia (Moltiplicatore)
+    // Se rain_prob è 100%, il moltiplicatore è 0.0 -> bisogno azzerato.
+    // Se rain_prob è 0%, il moltiplicatore è 1.0 -> bisogno inalterato.
+    float rain_modifier = 1.0f - (rain_prob / 100.0f);
+
+    // Calcolo parziale
+    float final_score = base_need * rain_modifier;
+
+    // 6. Correzione Pressione (Opzionale e molto lieve)
+    // Interviene solo se la probabilità di pioggia non è già estrema
+    if (p > 0.0f) { // Controllo validità pressione
+        if (p < 1000.0f) {
+            final_score -= 5.0f; // Leggera riduzione per brutto tempo in arrivo
+        } else if (p > 1020.0f) {
+            final_score += 5.0f; // Leggero aumento per alta pressione stabile
+        }
     }
 
-    return score;
+    // 7. Clamping finale di sicurezza
+    if (final_score < 0.0f) final_score = 0.0f;
+    if (final_score > 100.0f) final_score = 100.0f;
+
+    return (int)final_score;
 }
 
 static WIFI_Status_t SendWebPage(void)

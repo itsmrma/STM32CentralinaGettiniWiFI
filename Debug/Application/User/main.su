@@ -14,9 +14,9 @@
 ../Application/User/main.c:657:9:GetMonthNum	16	static
 ../Application/User/main.c:674:9:GetWeekdayNum	16	static
 ../Application/User/main.c:685:6:UpdateTimeHTTP	1128	static
-../Application/User/main.c:776:6:IncrementTime	4	static
-../Application/User/main.c:793:6:CheckWeatherForecast	1064	static
-../Application/User/main.c:835:6:SaveSettings	80	static
-../Application/User/main.c:879:6:LoadSettings	16	static
-../Application/User/main.c:901:6:HAL_GPIO_EXTI_Callback	16	static
-../Application/User/main.c:905:6:SPI3_IRQHandler	8	static
+../Application/User/main.c:774:6:IncrementTime	4	static
+../Application/User/main.c:791:6:CheckWeatherForecast	1064	static
+../Application/User/main.c:833:6:SaveSettings	80	static
+../Application/User/main.c:877:6:LoadSettings	16	static
+../Application/User/main.c:899:6:HAL_GPIO_EXTI_Callback	16	static
+../Application/User/main.c:903:6:SPI3_IRQHandler	8	static

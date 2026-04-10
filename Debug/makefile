@@ -1,6 +1,6 @@
 ################################################################################
 # Automatically-generated file. Do not edit!
-# Toolchain: GNU Tools for STM32 (13.3.rel1)
+# Toolchain: GNU Tools for STM32 (14.3.rel1)
 ################################################################################
 
 -include ../makefile.init
@@ -66,8 +66,8 @@ all: main-build
 main-build: Progetto_CentralinaGettini.elf secondary-outputs
 
 # Tool invocations
-Progetto_CentralinaGettini.elf Progetto_CentralinaGettini.map: $(OBJS) $(USER_OBJS) /home/pietro/Scrivania/STM32CentralinaGettiniWiFI-1/STM32L475VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Progetto_CentralinaGettini.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/home/pietro/Scrivania/STM32CentralinaGettiniWiFI-1/STM32L475VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Progetto_CentralinaGettini.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+Progetto_CentralinaGettini.elf Progetto_CentralinaGettini.map: $(OBJS) $(USER_OBJS) C:\Users\Pietro\Documents\GitHub\STM32CentralinaGettiniWiFI\STM32L475VGTX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Progetto_CentralinaGettini.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\Pietro\Documents\GitHub\STM32CentralinaGettiniWiFI\STM32L475VGTX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Progetto_CentralinaGettini.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

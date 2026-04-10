@@ -15,7 +15,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include "secrets.h"
+#include "C:\Users\Pietro\Desktop\secrets.h"
 // --- CONFIGURAZIONE RETE ---
 #define PORT           80
 #define WIFI_WRITE_TIMEOUT 10000
@@ -448,7 +448,7 @@ static WIFI_Status_t SendWebPage(void)
 
   // 3. Determina l'etichetta temporale (Oggi/Domani/Sim)
   if (sim_mode_active) time_label = "Simulazione";
-  else time_label = (is_showing_tomorrow) ? " Domani" : " Oggi";
+  else time_label = (is_showing_tomorrow) ? "Domani" : "Oggi";
 
   // 4. Logica Decisionale per il Banner (Testo e Colore)
   if (is_running) {
@@ -522,7 +522,7 @@ static WIFI_Status_t SendWebPage(void)
       "</div>"
       "<div class='v-center' style='font-size:0.9em; margin-top:5px;'>"
          "<span class='material-icons' style='font-size:1.1em; margin-right:5px'>cloud</span>"
-         "Previsione Pioggia per <strong>%s</strong>: <strong>%s</strong>"
+         "Previsione Pioggia per&nbsp;<strong>%s</strong>:&nbsp;<strong>%s</strong>"
       "</div>"
     "</div>"
     "<div class='dashboard'>"
@@ -533,14 +533,14 @@ static WIFI_Status_t SendWebPage(void)
     status_class,
     status_text,
     (sim_mode_active ? "SIMULAZIONE" : "ONLINE"),
-    time_label, // Qui scrive Oggi o Domani
+    time_label, // Oggi o Domani
     rainStr,
     T, H, P
   );
   WIFI_SendData(0, (uint8_t *)http, strlen((char *)http), &SentDataLength, WIFI_WRITE_TIMEOUT);
 
-  // CHUNK 4: Pannello Pianificazione Manuale (ORA È IL PRIMO)
-    // Nota: È qui che apriamo il tag <form>
+  // CHUNK 4: Pannello Pianificazione Manuale
+
     strcpy((char *)http, "<form method='POST'>");
     sprintf((char *)http + strlen((char *)http),
       "<div class='panel'>"
@@ -555,7 +555,7 @@ static WIFI_Status_t SendWebPage(void)
     );
     WIFI_SendData(0, (uint8_t *)http, strlen((char *)http), &SentDataLength, WIFI_WRITE_TIMEOUT);
 
-    // Continuazione Manuale (Checkbox Giorni)
+    // Continuazione controllo Manuale (Checkbox Giorni)
     const char* days[] = {"L", "M", "M", "G", "V", "S", "D"};
     strcpy((char *)http, "");
     for(int i=0; i<7; i++) {
@@ -568,7 +568,7 @@ static WIFI_Status_t SendWebPage(void)
     WIFI_SendData(0, (uint8_t *)http, strlen((char *)http), &SentDataLength, WIFI_WRITE_TIMEOUT);
 
 
-    // CHUNK 5: Pannello Auto Mode (ORA È IL SECONDO)
+    // CHUNK 5: Pannello Auto Mode
     char *score_color = (last_calculated_score >= smart_threshold) ? "#27ae60" : "#7f8c8d";
 
     sprintf((char *)http,
@@ -653,7 +653,7 @@ static void SystemClock_Config(void)
 }
 
 
-// Funzione ausiliaria per convertire Mese (Text) -> Numero
+// Funzione per convertire mese in numero
 uint8_t GetMonthNum(char *monthStr) {
     if (strstr(monthStr, "Jan")) return 1;
     if (strstr(monthStr, "Feb")) return 2;
@@ -670,7 +670,7 @@ uint8_t GetMonthNum(char *monthStr) {
     return 1; // Default
 }
 
-// Funzione ausiliaria per convertire Giorno (Text) -> Numero (0=Lun, ... 6=Dom)
+// Funzione per convertire giorno in numero (0=Lun,...,6=Dom)
 uint8_t GetWeekdayNum(char *dayStr) {
     if (strstr(dayStr, "Mon")) return 0;
     if (strstr(dayStr, "Tue")) return 1;
@@ -705,8 +705,7 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
     if (WIFI_OpenClientConnection(1, WIFI_TCP_PROTOCOL, "www.google.com", ipAddr, 80, 0) == WIFI_STATUS_OK) {
         printf("Connesso. Invio richiesta HTTP HEAD...\n");
 
-        // Costruzione richiesta HTTP 1.1 Minima
-        // HEAD invece di GET per risparmiare dati (scarica solo gli header)
+
         char *request = "HEAD / HTTP/1.1\r\nHost: www.google.com\r\nConnection: close\r\n\r\n";
         uint16_t sentLen = 0;
 
@@ -720,8 +719,7 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
         WIFI_Status_t status = WIFI_ReceiveData(1, (uint8_t*)recvBuf, 1023, &len, 2000);
 
         if (status == WIFI_STATUS_OK && len > 0) {
-            recvBuf[len] = '\0'; // Terminiamo la stringa per sicurezza
-            // printf("Dump Ricevuto:\n%s\n", recvBuf); // Decommenta per debug
+            recvBuf[len] = '\0';
 
             // Parsing della stringa "Date:"
             // Formato standard: "Date: Sat, 31 Jan 2026 14:24:42 GMT"
@@ -738,9 +736,9 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
                 if (sscanf(datePtr + 6, "%3s, %d %3s %d %d:%d:%d",
                            wdayStr, &day, monthStr, &year, &h, &m, &s) == 7) {
 
-                    // L'ora ricevuta è GMT (Greenwich).
-                    // Aggiungiamo +1 per l'Italia (o gestisci qui l'ora legale +2)
-                    int fuso_orario = 1;
+                    // L'ora ricevuta è GMT
+                    // +1 per l'Italia o +2 per l'ora legale
+                    int fuso_orario = 2;
                     h += fuso_orario;
                     if (h >= 24) {
                         h -= 24;

@@ -77,7 +77,10 @@ Time_Only_t orario = {0, 0, 0};
 uint32_t last_second_tick = 0;
 uint32_t last_sync_tick = 0;
 uint32_t sync_interval = 3600000;
-
+uint32_t last_http_activity=0;
+// Variabili per gestire il risveglio sicuro dallo Stop Mode
+volatile uint8_t system_is_sleeping = 0;
+volatile uint8_t wifi_irq_pending = 0;
 //Salvataggio impostazioni in MEMORIA FLASH
 // Indirizzo ultima pagina (STM32L475 1MB = Bank 2, Page 255)
 #define FLASH_STORAGE_ADDR 0x080FF800
@@ -111,6 +114,7 @@ void RefreshSystemState(void);
 void ApplyIrrigationControl(void);
 void LoadSettings(void);
 void SaveSettings(void);
+void EXTI15_10_IRQHandler(void);
 // Fix printf
 int _write(int file, char *ptr, int len) {
     HAL_UART_Transmit(&hDiscoUart, (uint8_t*)ptr, len, 1000);
@@ -184,6 +188,9 @@ int main(void)
 
   BSP_LED_Init(LED2);
 
+  // INIZIALIZZA IL BOTTONE BLU PER GENERARE UN INTERRUPT
+    BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+
   // 4. AVVIO WIFI
   wifi_server();
 }
@@ -222,32 +229,86 @@ int wifi_server(void)
 
   WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT);
   LOG(("Server HTTP attivo su porta 80.\n"));
+  last_http_activity = HAL_GetTick(); // Inizializza il timer di inattività
 
   do {
-    uint8_t RemoteIP[4];
-    uint16_t RemotePort;
+        // 1. LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
+        bool is_sleeping = (HAL_GetTick() - last_http_activity > 60000);
 
-    if (HAL_GetTick() - last_second_tick >= 1000) {
+        if (is_sleeping) {
+                    LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
+
+                    // 1. Chiudiamo il socket server in modo sicuro
+                    WIFI_StopServer(SOCKET);
+                    HAL_Delay(300); // Pausa maggiorata
+
+                    // Spegniamo l'interrupt Wi-Fi per evitare risvegli indesiderati
+                    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+
+                    // Andiamo a dormire
+                    HAL_SuspendTick();
+                    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+
+                    // --- IL SISTEMA È CONGELATO QUI ---
+
+                    // --- RISVEGLIO ---
+                    SystemClock_Config();
+                    HAL_ResumeTick();
+
+                    // Riattiviamo l'interrupt del Wi-Fi
+                    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+                    HAL_Delay(300); // Fondamentale: diamo tempo all'hardware SPI di riprendersi
+
+                    LOG((">>> BEEP! Risveglio da STOP Mode! Server di nuovo online.\n"));
+
+                    // 2. Sincronizziamo l'orario PRIMA di riaprire il Server
+                    // In questo modo evitiamo che il chip Wi-Fi debba gestire il Socket 0 (Server)
+                    // e il Socket 1 (Client Google) contemporaneamente appena sveglio.
+                    UpdateTimeHTTP(&orario);
+
+                    // Pausa vitale dopo aver parlato con Google
+                    HAL_Delay(500);
+
+                    // 3. ORA riapriamo il Server Web
+                    if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
+                        LOG(("Server riaperto con successo.\n"));
+                    } else {
+                        LOG(("ATTENZIONE: Errore riapertura Server.\n"));
+                    }
+
+                    // Resetta il timer e riparti
+                    last_http_activity = HAL_GetTick();
+                    continue;
+                }
+
+        // 2. GESTIONE SERVER E IRRIGAZIONE (Quando è sveglio)
+        uint8_t RemoteIP[4];
+        uint16_t RemotePort;
+
+        if (HAL_GetTick() - last_second_tick >= 1000) {
             last_second_tick += 1000;
             IncrementTime();
             ApplyIrrigationControl();
-    }
+        }
 
-    if (HAL_GetTick() - last_sync_tick >= sync_interval) {
-        LOG(("\n--- Auto Sync ---\n"));
-        UpdateTimeHTTP(&orario);
-        CheckWeatherForecast();
-        UpdateIrrigationLogic();
-        RefreshSystemState();
-        last_sync_tick = HAL_GetTick();
-    }
+        if (HAL_GetTick() - last_sync_tick >= sync_interval) {
+            LOG(("\n--- Auto Sync ---\n"));
+            UpdateTimeHTTP(&orario);
+            CheckWeatherForecast();
+            UpdateIrrigationLogic();
+            RefreshSystemState();
+            last_sync_tick = HAL_GetTick();
+        }
 
-    if (WIFI_STATUS_OK == WIFI_WaitServerConnection(SOCKET, 1000, RemoteIP, sizeof(RemoteIP), &RemotePort)) {
-        StopServer = WebServerProcess();
-        WIFI_CloseServerConnection(SOCKET);
-        HAL_Delay(500);
-    }
-  } while(StopServer == false);
+        // In modalità normale ascoltiamo la rete
+        if (WIFI_STATUS_OK == WIFI_WaitServerConnection(SOCKET, 1000, RemoteIP, sizeof(RemoteIP), &RemotePort)) {
+            last_http_activity = HAL_GetTick(); // Client connesso: resetta il timer di inattività!
+            StopServer = WebServerProcess();
+            WIFI_CloseServerConnection(SOCKET);
+            HAL_Delay(500);
+        }
+
+    } while(StopServer == false);
 
   WIFI_StopServer(SOCKET);
   return 0;
@@ -255,66 +316,65 @@ int wifi_server(void)
 
 static bool WebServerProcess(void)
 {
-  uint16_t respLen;
-  static uint8_t resp[1024];
-  bool stopserver=false;
+    uint16_t respLen;
+    static uint8_t resp[1024];
+    bool stopserver = false;
 
-  if (WIFI_STATUS_OK == WIFI_ReceiveData(SOCKET, resp, 1000, &respLen, WIFI_READ_TIMEOUT))
-  {
-    if( respLen > 0)
+    if (WIFI_STATUS_OK == WIFI_ReceiveData(SOCKET, resp, 1000, &respLen, WIFI_READ_TIMEOUT))
     {
-      if(respLen < 1024) resp[respLen] = '\0'; else resp[1023] = '\0';
+        if (respLen > 0)
+        {
+            if (respLen < 1024) resp[respLen] = '\0'; else resp[1023] = '\0';
 
-      if(strstr((char *)resp, "GET")) {
-        SendWebPage();
-      }
-      else if(strstr((char *)resp, "POST")) {
-         LOG(("POST Ricevuto. Aggiorno configurazione...\n"));
-         char *p;
+            if (strstr((char *)resp, "GET")) {
+                SendWebPage();
+            }
+            else if (strstr((char *)resp, "POST")) {
+                LOG(("POST Ricevuto. Aggiorno configurazione...\n"));
+                char *p;
 
-         p = strstr((char *)resp, "cfg_hour=");
-         if (p) cfg_start_hour = atoi(p + 9);
+                p = strstr((char *)resp, "cfg_hour=");
+                if (p) cfg_start_hour = atoi(p + 9);
 
-         p = strstr((char *)resp, "cfg_dur=");
-         if (p) cfg_duration_min = atoi(p + 8);
+                p = strstr((char *)resp, "cfg_dur=");
+                if (p) cfg_duration_min = atoi(p + 8);
 
+                // --- NUOVO PARSING SMART MODE ---
+                if (strstr((char *)resp, "smart_active=1")) {
+                    smart_mode_active = 1;
+                } else {
+                    smart_mode_active = 0;
+                }
 
-         // --- NUOVO PARSING SMART MODE ---
-		 if (strstr((char *)resp, "smart_active=1")) {
-			  smart_mode_active = 1;
-		 } else {
-			  smart_mode_active = 0;
-		 }
+                char *p_smart = strstr((char *)resp, "smart_th=");
+                if (p_smart) smart_threshold = atoi(p_smart + 9);
+                // -------------------------------
 
-		 char *p_smart = strstr((char *)resp, "smart_th=");
-		 if (p_smart) smart_threshold = atoi(p_smart + 9);
-		 // -------------------------------
+                cfg_days_mask = 0;
+                if (strstr((char *)resp, "day_0=1")) cfg_days_mask |= (1<<0);
+                if (strstr((char *)resp, "day_1=1")) cfg_days_mask |= (1<<1);
+                if (strstr((char *)resp, "day_2=1")) cfg_days_mask |= (1<<2);
+                if (strstr((char *)resp, "day_3=1")) cfg_days_mask |= (1<<3);
+                if (strstr((char *)resp, "day_4=1")) cfg_days_mask |= (1<<4);
+                if (strstr((char *)resp, "day_5=1")) cfg_days_mask |= (1<<5);
+                if (strstr((char *)resp, "day_6=1")) cfg_days_mask |= (1<<6);
 
-         cfg_days_mask = 0;
-         if (strstr((char *)resp, "day_0=1")) cfg_days_mask |= (1<<0);
-         if (strstr((char *)resp, "day_1=1")) cfg_days_mask |= (1<<1);
-         if (strstr((char *)resp, "day_2=1")) cfg_days_mask |= (1<<2);
-         if (strstr((char *)resp, "day_3=1")) cfg_days_mask |= (1<<3);
-         if (strstr((char *)resp, "day_4=1")) cfg_days_mask |= (1<<4);
-         if (strstr((char *)resp, "day_5=1")) cfg_days_mask |= (1<<5);
-         if (strstr((char *)resp, "day_6=1")) cfg_days_mask |= (1<<6);
+                if (strstr((char *)resp, "sim_mode=1")) {
+                    sim_mode_active = 1;
+                    p = strstr((char *)resp, "sim_rain=");
+                    if (p) sim_rain_prob = atoi(p + 9);
+                } else {
+                    sim_mode_active = 0;
+                }
 
-         if (strstr((char *)resp, "sim_mode=1")) {
-             sim_mode_active = 1;
-             p = strstr((char *)resp, "sim_rain=");
-             if (p) sim_rain_prob = atoi(p + 9);
-         } else {
-             sim_mode_active = 0;
-         }
-
-         RefreshSystemState();
-         ApplyIrrigationControl();
-         SaveSettings();
-         SendWebPage();
-      }
+                RefreshSystemState();
+                ApplyIrrigationControl();
+                SaveSettings();
+                SendWebPage();
+            }
+        }
     }
-  }
-  return stopserver;
+    return stopserver;
 }
 
 void UpdateIrrigationLogic(void) {
@@ -393,10 +453,9 @@ void ApplyIrrigationControl(void) {
 }
 
 
-
 /*
- * Calcolo indice di bisogno idrico
- * Formula: (100-Umidità) + (Temp*2) - (PioggiaProb) + (CorrezionePressione)
+ * Calcolo indice di bisogno idrico (0 - 100)
+ * Logica: Calcola un bisogno base (Temp + Umidità) e lo riduce in base alla pioggia.
  */
 int CalculateSmartScore(float t, float h, float p, int rain_prob) {
     // 1. Normalizzazione degli input per sicurezza
@@ -446,7 +505,6 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
 
     return (int)final_score;
 }
-
 static WIFI_Status_t SendWebPage(void)
 {
   uint16_t SentDataLength;
@@ -920,9 +978,25 @@ void LoadSettings(void) {
     }
 }
 
+// --- GESTORE INTERRUPT HARDWARE PER IL PIN 13 (Bottone Blu) ---
+void EXTI15_10_IRQHandler(void) {
+    // Comunica ad HAL che l'interrupt del Pin 13 è stato gestito
+    // Questo ripulirà il "flag" di sistema e chiamerà la tua HAL_GPIO_EXTI_Callback
+    HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
+}
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-  if (GPIO_Pin == GPIO_PIN_1) SPI_WIFI_ISR();
+  // Interrupt dal Wi-Fi
+  if (GPIO_Pin == GPIO_PIN_1) {
+      SPI_WIFI_ISR();
+  }
+
+  // Interrupt dal Bottone Blu (PC13)
+  if (GPIO_Pin == USER_BUTTON_PIN) {
+      // Non dobbiamo fare nulla di speciale qui.
+      // Il semplice fatto che l'hardware sia entrato in questa funzione
+      // fa uscire automaticamente la CPU dalla Stop Mode (WFI)!
+  }
 }
 
 void SPI3_IRQHandler(void) {
@@ -932,3 +1006,4 @@ void SPI3_IRQHandler(void) {
 #ifdef USE_FULL_ASSERT
 void assert_failed(uint8_t* file, uint32_t line) {}
 #endif
+

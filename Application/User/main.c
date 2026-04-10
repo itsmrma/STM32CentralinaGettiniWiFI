@@ -21,7 +21,7 @@
 #define WIFI_WRITE_TIMEOUT 10000
 #define WIFI_READ_TIMEOUT  10000
 #define SOCKET             0
-
+#define STOP_MODE_TIMER 600000 // timer stop mode
 #define TIME_PROTOCOL_DELTA 2208988800U
 
 #define LOG(a) printf a
@@ -233,7 +233,7 @@ int wifi_server(void)
 
   do {
         // 1. LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
-        bool is_sleeping = (HAL_GetTick() - last_http_activity > 60000);
+        bool is_sleeping = (HAL_GetTick() - last_http_activity > STOP_MODE_TIMER);
 
         if (is_sleeping) {
                     LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
@@ -245,7 +245,8 @@ int wifi_server(void)
                     // Spegniamo l'interrupt Wi-Fi per evitare risvegli indesiderati
                     HAL_NVIC_DisableIRQ(EXTI1_IRQn);
 
-                    // Andiamo a dormire
+                    //Abilita stop mode
+
                     HAL_SuspendTick();
                     HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
@@ -259,14 +260,13 @@ int wifi_server(void)
                     HAL_NVIC_EnableIRQ(EXTI1_IRQn);
                     HAL_Delay(300); // Fondamentale: diamo tempo all'hardware SPI di riprendersi
 
-                    LOG((">>> BEEP! Risveglio da STOP Mode! Server di nuovo online.\n"));
+                    LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
 
                     // 2. Sincronizziamo l'orario PRIMA di riaprire il Server
                     // In questo modo evitiamo che il chip Wi-Fi debba gestire il Socket 0 (Server)
                     // e il Socket 1 (Client Google) contemporaneamente appena sveglio.
                     UpdateTimeHTTP(&orario);
 
-                    // Pausa vitale dopo aver parlato con Google
                     HAL_Delay(500);
 
                     // 3. ORA riapriamo il Server Web
@@ -431,7 +431,6 @@ void ApplyIrrigationControl(void) {
 
         if (smart_mode_active) {
             // Logica Smart: Score > Soglia
-            // (Nota: last_calculated_score è già stato aggiornato da RefreshSystemState)
             if (last_calculated_score >= smart_threshold) {
                 start_irrigation = 1;
             }
@@ -775,10 +774,16 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
 
     // DNS Resolve Google
     printf("1. DNS Resolve (www.google.com)... ");
+
+
+
     if (WIFI_GetHostAddress("www.google.com", ipAddr, 4) != WIFI_STATUS_OK) {
         printf("FALLITO (DNS)\n");
         return;
     }
+
+
+
     printf("OK (%d.%d.%d.%d)\n", ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3]);
 
     // Connessione TCP Porta 80
@@ -884,6 +889,8 @@ void CheckWeatherForecast(void) {
 
     if (WIFI_OpenClientConnection(1, WIFI_TCP_PROTOCOL, "api.open-meteo.com", ipAddr, 80, 0) == WIFI_STATUS_OK) {
         char request[512];
+
+
         sprintf(request, "GET /v1/forecast?latitude=%s&longitude=%s&daily=precipitation_probability_max&timezone=auto&forecast_days=2 HTTP/1.1\r\nHost: api.open-meteo.com\r\nConnection: close\r\n\r\n", LAT, LON);
 
         WIFI_SendData(1, (uint8_t*)request, strlen(request), &sentLen, 1000);
@@ -926,7 +933,7 @@ void SaveSettings(void) {
     dataToSave.saved_sim_mode = sim_mode_active;
     dataToSave.saved_sim_rain_prob = sim_rain_prob;
 
-    // 2. SCRITTURA IN FLASH (Standard STM32)
+    //Scrittura in flash
     HAL_FLASH_Unlock();
 
     // Cancellazione pagina
@@ -978,10 +985,8 @@ void LoadSettings(void) {
     }
 }
 
-// --- GESTORE INTERRUPT HARDWARE PER IL PIN 13 (Bottone Blu) ---
+
 void EXTI15_10_IRQHandler(void) {
-    // Comunica ad HAL che l'interrupt del Pin 13 è stato gestito
-    // Questo ripulirà il "flag" di sistema e chiamerà la tua HAL_GPIO_EXTI_Callback
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);
 }
 
@@ -989,13 +994,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   // Interrupt dal Wi-Fi
   if (GPIO_Pin == GPIO_PIN_1) {
       SPI_WIFI_ISR();
-  }
-
-  // Interrupt dal Bottone Blu (PC13)
-  if (GPIO_Pin == USER_BUTTON_PIN) {
-      // Non dobbiamo fare nulla di speciale qui.
-      // Il semplice fatto che l'hardware sia entrato in questa funzione
-      // fa uscire automaticamente la CPU dalla Stop Mode (WFI)!
   }
 }
 

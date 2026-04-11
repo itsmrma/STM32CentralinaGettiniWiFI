@@ -12534,36 +12534,36 @@ LOAD C:/ST/STM32CubeIDE_2.1.1/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.exte
 LOAD C:/ST/STM32CubeIDE_2.1.1/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.win32_1.0.100.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/../../../../arm-none-eabi/lib/thumb/v7e-m+fp/hard\libm.a
 LOAD C:/ST/STM32CubeIDE_2.1.1/STM32CubeIDE/plugins/com.st.stm32cube.ide.mcu.externaltools.gnu-tools-for-stm32.14.3.rel1.win32_1.0.100.202602081740/tools/bin/../lib/gcc/arm-none-eabi/14.3.1/thumb/v7e-m+fp/hard\libgcc.a
 
-.debug_line     0x00000000    0x1e095
+.debug_line     0x00000000    0x1e091
  .debug_line    0x00000000       0x7a ./Application/Startup/startup_stm32l475vgtx.o
- .debug_line    0x0000007a     0x1dce ./Application/User/main.o
- .debug_line    0x00001e48     0x1137 ./Application/User/stm32l4xx_it.o
- .debug_line    0x00002f7f      0x8b9 ./Application/User/syscalls.o
- .debug_line    0x00003838      0x595 ./Application/User/sysmem.o
- .debug_line    0x00003dcd      0x9d2 ./Application/User/system_stm32l4xx.o
- .debug_line    0x0000479f     0x209b ./Application/WIFI/es_wifi.o
- .debug_line    0x0000683a      0xf43 ./Application/WIFI/es_wifi_io.o
- .debug_line    0x0000777d     0x10c3 ./Application/WIFI/wifi.o
- .debug_line    0x00008840      0xdd4 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01.o
- .debug_line    0x00009614      0xa17 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_hsensor.o
- .debug_line    0x0000a02b      0xa1a ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_psensor.o
- .debug_line    0x0000aa45      0x9f2 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_tsensor.o
- .debug_line    0x0000b437      0x5c6 ./Drivers/BSP/Components/hts221/hts221.o
- .debug_line    0x0000b9fd      0x5a1 ./Drivers/BSP/Components/lps22hb/lps22hb.o
- .debug_line    0x0000bf9e      0xcf9 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.o
- .debug_line    0x0000cc97      0xe91 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.o
- .debug_line    0x0000db28      0xed0 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.o
- .debug_line    0x0000e9f8      0xc75 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.o
- .debug_line    0x0000f66d      0xf1c ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.o
- .debug_line    0x00010589      0xd4a ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.o
- .debug_line    0x000112d3     0x3909 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.o
- .debug_line    0x00014bdc      0xa56 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.o
- .debug_line    0x00015632      0x939 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_msp_template.o
- .debug_line    0x00015f6b      0xac1 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.o
- .debug_line    0x00016a2c      0xea8 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.o
- .debug_line    0x000178d4     0x124b ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.o
- .debug_line    0x00018b1f     0x265d ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.o
- .debug_line    0x0001b17c     0x2f19 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.o
+ .debug_line    0x0000007a     0x1dca ./Application/User/main.o
+ .debug_line    0x00001e44     0x1137 ./Application/User/stm32l4xx_it.o
+ .debug_line    0x00002f7b      0x8b9 ./Application/User/syscalls.o
+ .debug_line    0x00003834      0x595 ./Application/User/sysmem.o
+ .debug_line    0x00003dc9      0x9d2 ./Application/User/system_stm32l4xx.o
+ .debug_line    0x0000479b     0x209b ./Application/WIFI/es_wifi.o
+ .debug_line    0x00006836      0xf43 ./Application/WIFI/es_wifi_io.o
+ .debug_line    0x00007779     0x10c3 ./Application/WIFI/wifi.o
+ .debug_line    0x0000883c      0xdd4 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01.o
+ .debug_line    0x00009610      0xa17 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_hsensor.o
+ .debug_line    0x0000a027      0xa1a ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_psensor.o
+ .debug_line    0x0000aa41      0x9f2 ./Drivers/BSP/B-L475E-IOT01/stm32l475e_iot01_tsensor.o
+ .debug_line    0x0000b433      0x5c6 ./Drivers/BSP/Components/hts221/hts221.o
+ .debug_line    0x0000b9f9      0x5a1 ./Drivers/BSP/Components/lps22hb/lps22hb.o
+ .debug_line    0x0000bf9a      0xcf9 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal.o
+ .debug_line    0x0000cc93      0xe91 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_cortex.o
+ .debug_line    0x0000db24      0xed0 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_dma.o
+ .debug_line    0x0000e9f4      0xc75 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash.o
+ .debug_line    0x0000f669      0xf1c ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_flash_ex.o
+ .debug_line    0x00010585      0xd4a ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_gpio.o
+ .debug_line    0x000112cf     0x3909 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c.o
+ .debug_line    0x00014bd8      0xa56 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_i2c_ex.o
+ .debug_line    0x0001562e      0x939 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_msp_template.o
+ .debug_line    0x00015f67      0xac1 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr.o
+ .debug_line    0x00016a28      0xea8 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_pwr_ex.o
+ .debug_line    0x000178d0     0x124b ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_rcc.o
+ .debug_line    0x00018b1b     0x265d ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_spi.o
+ .debug_line    0x0001b178     0x2f19 ./Drivers/STM32L4xx_HAL_Driver/Src/stm32l4xx_hal_uart.o
 
 .debug_line_str
                 0x00000000       0x71

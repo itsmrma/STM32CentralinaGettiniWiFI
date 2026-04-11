@@ -29,13 +29,13 @@ Idx Name          Size      VMA       LMA       File off  Algn
                   ALLOC
  12 .ARM.attributes 00000030  00000000  00000000  00012254  2**0
                   CONTENTS, READONLY
- 13 .debug_line   0001e095  00000000  00000000  00012284  2**0
+ 13 .debug_line   0001e091  00000000  00000000  00012284  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 14 .debug_line_str 00000071  00000000  00000000  00030319  2**0
+ 14 .debug_line_str 00000071  00000000  00000000  00030315  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 15 .debug_info   000173f2  00000000  00000000  0003038a  2**0
+ 15 .debug_info   000173f2  00000000  00000000  00030386  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
- 16 .debug_abbrev 000038e4  00000000  00000000  0004777c  2**0
+ 16 .debug_abbrev 000038e4  00000000  00000000  00047778  2**0
                   CONTENTS, READONLY, DEBUGGING, OCTETS
  17 .debug_aranges 00001608  00000000  00000000  0004b060  2**3
                   CONTENTS, READONLY, DEBUGGING, OCTETS
@@ -1334,10 +1334,10 @@ Infinite_Loop:
 	...
 
 08000f28 <_write>:
-void ApplyIrrigationControl(void);
 void LoadSettings(void);
 void SaveSettings(void);
 void EXTI15_10_IRQHandler(void);
+
 // Fix printf
 int _write(int file, char *ptr, int len) {
  8000f28:	b580      	push	{r7, lr}
@@ -1425,70 +1425,69 @@ int main(void)
  8000fac:	f004 fff4 	bl	8005f98 <HAL_GPIO_WritePin>
 
 
-
-  // 1. INIZIALIZZAZIONE SERIALE
-  hDiscoUart.Instance = DISCOVERY_COM1;
+	// 1. INIZIALIZZAZIONE SERIALE
+	hDiscoUart.Instance = DISCOVERY_COM1;
  8000fb0:	4b47      	ldr	r3, [pc, #284]	@ (80010d0 <main+0x17c>)
  8000fb2:	4a48      	ldr	r2, [pc, #288]	@ (80010d4 <main+0x180>)
  8000fb4:	601a      	str	r2, [r3, #0]
-  hDiscoUart.Init.BaudRate = 115200;
+	hDiscoUart.Init.BaudRate = 115200;
  8000fb6:	4b46      	ldr	r3, [pc, #280]	@ (80010d0 <main+0x17c>)
  8000fb8:	f44f 32e1 	mov.w	r2, #115200	@ 0x1c200
  8000fbc:	605a      	str	r2, [r3, #4]
-  hDiscoUart.Init.WordLength = UART_WORDLENGTH_8B;
+	hDiscoUart.Init.WordLength = UART_WORDLENGTH_8B;
  8000fbe:	4b44      	ldr	r3, [pc, #272]	@ (80010d0 <main+0x17c>)
  8000fc0:	2200      	movs	r2, #0
  8000fc2:	609a      	str	r2, [r3, #8]
-  hDiscoUart.Init.StopBits = UART_STOPBITS_1;
+	hDiscoUart.Init.StopBits = UART_STOPBITS_1;
  8000fc4:	4b42      	ldr	r3, [pc, #264]	@ (80010d0 <main+0x17c>)
  8000fc6:	2200      	movs	r2, #0
  8000fc8:	60da      	str	r2, [r3, #12]
-  hDiscoUart.Init.Parity = UART_PARITY_NONE;
+	hDiscoUart.Init.Parity = UART_PARITY_NONE;
  8000fca:	4b41      	ldr	r3, [pc, #260]	@ (80010d0 <main+0x17c>)
  8000fcc:	2200      	movs	r2, #0
  8000fce:	611a      	str	r2, [r3, #16]
-  hDiscoUart.Init.Mode = UART_MODE_TX_RX;
+	hDiscoUart.Init.Mode = UART_MODE_TX_RX;
  8000fd0:	4b3f      	ldr	r3, [pc, #252]	@ (80010d0 <main+0x17c>)
  8000fd2:	220c      	movs	r2, #12
  8000fd4:	615a      	str	r2, [r3, #20]
-  hDiscoUart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	hDiscoUart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
  8000fd6:	4b3e      	ldr	r3, [pc, #248]	@ (80010d0 <main+0x17c>)
  8000fd8:	2200      	movs	r2, #0
  8000fda:	619a      	str	r2, [r3, #24]
-  hDiscoUart.Init.OverSampling = UART_OVERSAMPLING_16;
+	hDiscoUart.Init.OverSampling = UART_OVERSAMPLING_16;
  8000fdc:	4b3c      	ldr	r3, [pc, #240]	@ (80010d0 <main+0x17c>)
  8000fde:	2200      	movs	r2, #0
  8000fe0:	61da      	str	r2, [r3, #28]
-  hDiscoUart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	hDiscoUart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
  8000fe2:	4b3b      	ldr	r3, [pc, #236]	@ (80010d0 <main+0x17c>)
  8000fe4:	2200      	movs	r2, #0
  8000fe6:	621a      	str	r2, [r3, #32]
-  hDiscoUart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	hDiscoUart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
  8000fe8:	4b39      	ldr	r3, [pc, #228]	@ (80010d0 <main+0x17c>)
  8000fea:	2200      	movs	r2, #0
  8000fec:	625a      	str	r2, [r3, #36]	@ 0x24
 
-  BSP_COM_Init(COM1, &hDiscoUart);
+	BSP_COM_Init(COM1, &hDiscoUart);
  8000fee:	4938      	ldr	r1, [pc, #224]	@ (80010d0 <main+0x17c>)
  8000ff0:	2000      	movs	r0, #0
  8000ff2:	f003 fca3 	bl	800493c <BSP_COM_Init>
 
-  printf("\r\n\r\n==================================\r\n");
+	printf("\r\n\r\n==================================\r\n");
  8000ff6:	4838      	ldr	r0, [pc, #224]	@ (80010d8 <main+0x184>)
  8000ff8:	f009 ff70 	bl	800aedc <puts>
-  printf("   SMART GARDEN BOOTING... \r\n");
+	printf("   SMART GARDEN BOOTING... \r\n");
  8000ffc:	4837      	ldr	r0, [pc, #220]	@ (80010dc <main+0x188>)
  8000ffe:	f009 ff6d 	bl	800aedc <puts>
-  printf("==================================\r\n");
+	printf("==================================\r\n");
  8001002:	4837      	ldr	r0, [pc, #220]	@ (80010e0 <main+0x18c>)
  8001004:	f009 ff6a 	bl	800aedc <puts>
 
-  // 2. INIZIALIZZAZIONE SENSORI
-  printf("Init Sensori... ");
+	// INIZIALIZZAZIONE SENSORI
+	printf("Init Sensori... ");
  8001008:	4836      	ldr	r0, [pc, #216]	@ (80010e4 <main+0x190>)
  800100a:	f009 feff 	bl	800ae0c <iprintf>
 
-  if(BSP_HSENSOR_Init() != HSENSOR_OK) printf("[ERR HUM] ");
+	if(BSP_HSENSOR_Init() != HSENSOR_OK) printf("[ERR HUM] ");
  800100e:	f003 fe51 	bl	8004cb4 <BSP_HSENSOR_Init>
  8001012:	4603      	mov	r3, r0
  8001014:	2b00      	cmp	r3, #0
@@ -1496,11 +1495,11 @@ int main(void)
  8001018:	4833      	ldr	r0, [pc, #204]	@ (80010e8 <main+0x194>)
  800101a:	f009 fef7 	bl	800ae0c <iprintf>
  800101e:	e002      	b.n	8001026 <main+0xd2>
-  else printf("[HUM OK] ");
+	else printf("[HUM OK] ");
  8001020:	4832      	ldr	r0, [pc, #200]	@ (80010ec <main+0x198>)
  8001022:	f009 fef3 	bl	800ae0c <iprintf>
 
-  if(BSP_TSENSOR_Init() != TSENSOR_OK) printf("[ERR TMP] ");
+	if(BSP_TSENSOR_Init() != TSENSOR_OK) printf("[ERR TMP] ");
  8001026:	f003 fea1 	bl	8004d6c <BSP_TSENSOR_Init>
  800102a:	4603      	mov	r3, r0
  800102c:	2b00      	cmp	r3, #0
@@ -1508,11 +1507,11 @@ int main(void)
  8001030:	482f      	ldr	r0, [pc, #188]	@ (80010f0 <main+0x19c>)
  8001032:	f009 feeb 	bl	800ae0c <iprintf>
  8001036:	e002      	b.n	800103e <main+0xea>
-  else printf("[TMP OK] ");
+	else printf("[TMP OK] ");
  8001038:	482e      	ldr	r0, [pc, #184]	@ (80010f4 <main+0x1a0>)
  800103a:	f009 fee7 	bl	800ae0c <iprintf>
 
-  if(BSP_PSENSOR_Init() != PSENSOR_OK) printf("[ERR PRS] ");
+	if(BSP_PSENSOR_Init() != PSENSOR_OK) printf("[ERR PRS] ");
  800103e:	f003 fe67 	bl	8004d10 <BSP_PSENSOR_Init>
  8001042:	4603      	mov	r3, r0
  8001044:	2b00      	cmp	r3, #0
@@ -1520,29 +1519,29 @@ int main(void)
  8001048:	482b      	ldr	r0, [pc, #172]	@ (80010f8 <main+0x1a4>)
  800104a:	f009 fedf 	bl	800ae0c <iprintf>
  800104e:	e002      	b.n	8001056 <main+0x102>
-  else printf("[PRS OK] ");
+	else printf("[PRS OK] ");
  8001050:	482a      	ldr	r0, [pc, #168]	@ (80010fc <main+0x1a8>)
  8001052:	f009 fedb 	bl	800ae0c <iprintf>
 
-  printf("\r\n");
+	printf("\r\n");
  8001056:	482a      	ldr	r0, [pc, #168]	@ (8001100 <main+0x1ac>)
  8001058:	f009 ff40 	bl	800aedc <puts>
 
-  LoadSettings();
+	LoadSettings();
  800105c:	f001 fac4 	bl	80025e8 <LoadSettings>
 
-  HAL_Delay(500);
+	HAL_Delay(500);
  8001060:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
  8001064:	f004 f97a 	bl	800535c <HAL_Delay>
 
-  // Test lettura valori
-  float t_test = BSP_TSENSOR_ReadTemp();
+	// Test lettura valori
+	float t_test = BSP_TSENSOR_ReadTemp();
  8001068:	f003 fe9c 	bl	8004da4 <BSP_TSENSOR_ReadTemp>
  800106c:	ed87 0a07 	vstr	s0, [r7, #28]
-  float h_test = BSP_HSENSOR_ReadHumidity();
+	float h_test = BSP_HSENSOR_ReadHumidity();
  8001070:	f003 fe40 	bl	8004cf4 <BSP_HSENSOR_ReadHumidity>
  8001074:	ed87 0a06 	vstr	s0, [r7, #24]
-  printf("Test Lettura: T=%.2f H=%.2f\r\n", t_test, h_test);
+	printf("Test Lettura: T=%.2f H=%.2f\r\n", t_test, h_test);
  8001078:	69f8      	ldr	r0, [r7, #28]
  800107a:	f7ff fa65 	bl	8000548 <__aeabi_f2d>
  800107e:	4604      	mov	r4, r0
@@ -1556,7 +1555,7 @@ int main(void)
  8001092:	462b      	mov	r3, r5
  8001094:	481b      	ldr	r0, [pc, #108]	@ (8001104 <main+0x1b0>)
  8001096:	f009 feb9 	bl	800ae0c <iprintf>
-  if(t_test == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
+	if(t_test == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
  800109a:	edd7 7a07 	vldr	s15, [r7, #28]
  800109e:	eef5 7a40 	vcmp.f32	s15, #0.0
  80010a2:	eef1 fa10 	vmrs	APSR_nzcv, fpscr
@@ -1564,18 +1563,17 @@ int main(void)
  80010a8:	4817      	ldr	r0, [pc, #92]	@ (8001108 <main+0x1b4>)
  80010aa:	f009 ff17 	bl	800aedc <puts>
 
-  BSP_LED_Init(LED2);
+	BSP_LED_Init(LED2);
  80010ae:	2000      	movs	r0, #0
  80010b0:	f003 fb92 	bl	80047d8 <BSP_LED_Init>
 
-  // INIZIALIZZA IL BOTTONE BLU PER GENERARE UN INTERRUPT
-    BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
+	// INIZIALIZZA IL BOTTONE BLU PER GENERARE INTERRUPT
+	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
  80010b4:	2101      	movs	r1, #1
  80010b6:	2000      	movs	r0, #0
  80010b8:	f003 fbea 	bl	8004890 <BSP_PB_Init>
 
-  // 4. AVVIO WIFI
-  wifi_server();
+	wifi_server();
  80010bc:	f000 f870 	bl	80011a0 <wifi_server>
  80010c0:	2300      	movs	r3, #0
 }
@@ -1743,7 +1741,7 @@ int wifi_server(void)
  8001208:	6013      	str	r3, [r2, #0]
 
   do {
-        // 1. LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
+        // LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
         bool is_sleeping = (HAL_GetTick() - last_http_activity > STOP_MODE_TIMER);
  800120a:	f004 f89b 	bl	8005344 <HAL_GetTick>
  800120e:	4602      	mov	r2, r0
@@ -1761,65 +1759,59 @@ int wifi_server(void)
  8001222:	7bbb      	ldrb	r3, [r7, #14]
  8001224:	2b00      	cmp	r3, #0
  8001226:	d040      	beq.n	80012aa <wifi_server+0x10a>
-                    LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
+			LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
  8001228:	4855      	ldr	r0, [pc, #340]	@ (8001380 <wifi_server+0x1e0>)
  800122a:	f009 fe57 	bl	800aedc <puts>
 
-                    // 1. Chiudiamo il socket server in modo sicuro
-                    WIFI_StopServer(SOCKET);
+			// Chiusura del socket server in modo sicuro
+			WIFI_StopServer(SOCKET);
  800122e:	2000      	movs	r0, #0
  8001230:	f003 fa76 	bl	8004720 <WIFI_StopServer>
-                    HAL_Delay(300); // Pausa maggiorata
+			HAL_Delay(300);
  8001234:	f44f 7096 	mov.w	r0, #300	@ 0x12c
  8001238:	f004 f890 	bl	800535c <HAL_Delay>
 
-                    // Spegniamo l'interrupt Wi-Fi per evitare risvegli indesiderati
-                    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+			// Spegnimento interrupt Wi-Fi per evitare risvegli indesiderati
+			HAL_NVIC_DisableIRQ(EXTI1_IRQn);
  800123c:	2007      	movs	r0, #7
  800123e:	f004 f9fa 	bl	8005636 <HAL_NVIC_DisableIRQ>
 
-                    //Abilita stop mode
-
-                    HAL_SuspendTick();
+			//Abilita stop mode
+			HAL_SuspendTick();
  8001242:	f004 f8af 	bl	80053a4 <HAL_SuspendTick>
-                    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+			HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
  8001246:	2101      	movs	r1, #1
  8001248:	f44f 4080 	mov.w	r0, #16384	@ 0x4000
  800124c:	f005 fcf4 	bl	8006c38 <HAL_PWR_EnterSTOPMode>
 
-                    // --- IL SISTEMA È CONGELATO QUI ---
 
-                    // --- RISVEGLIO ---
-                    SystemClock_Config();
+			// RISVEGLIO
+			SystemClock_Config();
  8001250:	f000 fe4e 	bl	8001ef0 <SystemClock_Config>
-                    HAL_ResumeTick();
+			HAL_ResumeTick();
  8001254:	f004 f8b6 	bl	80053c4 <HAL_ResumeTick>
 
-                    // Riattiviamo l'interrupt del Wi-Fi
-                    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+			// Riattivazione dell'interrupt del Wi-Fi
+			HAL_NVIC_EnableIRQ(EXTI1_IRQn);
  8001258:	2007      	movs	r0, #7
  800125a:	f004 f9de 	bl	800561a <HAL_NVIC_EnableIRQ>
-                    HAL_Delay(300); // Fondamentale: diamo tempo all'hardware SPI di riprendersi
+			HAL_Delay(300);
  800125e:	f44f 7096 	mov.w	r0, #300	@ 0x12c
  8001262:	f004 f87b 	bl	800535c <HAL_Delay>
 
-                    LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
+			LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
  8001266:	4847      	ldr	r0, [pc, #284]	@ (8001384 <wifi_server+0x1e4>)
  8001268:	f009 fe38 	bl	800aedc <puts>
 
-                    // 2. Sincronizziamo l'orario PRIMA di riaprire il Server
-                    // In questo modo evitiamo che il chip Wi-Fi debba gestire il Socket 0 (Server)
-                    // e il Socket 1 (Client Google) contemporaneamente appena sveglio.
-                    UpdateTimeHTTP(&orario);
+			UpdateTimeHTTP(&orario);
  800126c:	483d      	ldr	r0, [pc, #244]	@ (8001364 <wifi_server+0x1c4>)
  800126e:	f000 fec7 	bl	8002000 <UpdateTimeHTTP>
-
-                    HAL_Delay(500);
+			HAL_Delay(500);
  8001272:	f44f 70fa 	mov.w	r0, #500	@ 0x1f4
  8001276:	f004 f871 	bl	800535c <HAL_Delay>
 
-                    // 3. ORA riapriamo il Server Web
-                    if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
+			// riapertura del Server Web
+			if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
  800127a:	2350      	movs	r3, #80	@ 0x50
  800127c:	9300      	str	r3, [sp, #0]
  800127e:	4b3c      	ldr	r3, [pc, #240]	@ (8001370 <wifi_server+0x1d0>)
@@ -1830,25 +1822,24 @@ int wifi_server(void)
  800128a:	4603      	mov	r3, r0
  800128c:	2b00      	cmp	r3, #0
  800128e:	d103      	bne.n	8001298 <wifi_server+0xf8>
-                        LOG(("Server riaperto con successo.\n"));
+				LOG(("Server riaperto con successo.\n"));
  8001290:	483d      	ldr	r0, [pc, #244]	@ (8001388 <wifi_server+0x1e8>)
  8001292:	f009 fe23 	bl	800aedc <puts>
  8001296:	e002      	b.n	800129e <wifi_server+0xfe>
-                    } else {
-                        LOG(("ATTENZIONE: Errore riapertura Server.\n"));
+			} else {
+				LOG(("ATTENZIONE: Errore riapertura Server.\n"));
  8001298:	483c      	ldr	r0, [pc, #240]	@ (800138c <wifi_server+0x1ec>)
  800129a:	f009 fe1f 	bl	800aedc <puts>
-                    }
+			}
 
-                    // Resetta il timer e riparti
-                    last_http_activity = HAL_GetTick();
+			last_http_activity = HAL_GetTick();
  800129e:	f004 f851 	bl	8005344 <HAL_GetTick>
  80012a2:	4603      	mov	r3, r0
  80012a4:	4a34      	ldr	r2, [pc, #208]	@ (8001378 <wifi_server+0x1d8>)
  80012a6:	6013      	str	r3, [r2, #0]
  80012a8:	e04a      	b.n	8001340 <wifi_server+0x1a0>
 
-        // 2. GESTIONE SERVER E IRRIGAZIONE (Quando è sveglio)
+
         uint8_t RemoteIP[4];
         uint16_t RemotePort;
 
@@ -1901,7 +1892,7 @@ int wifi_server(void)
  8001304:	6013      	str	r3, [r2, #0]
         }
 
-        // In modalità normale ascoltiamo la rete
+
         if (WIFI_STATUS_OK == WIFI_WaitServerConnection(SOCKET, 1000, RemoteIP, sizeof(RemoteIP), &RemotePort)) {
  8001306:	f107 0208 	add.w	r2, r7, #8
  800130a:	1dbb      	adds	r3, r7, #6
@@ -1913,7 +1904,7 @@ int wifi_server(void)
  800131a:	4603      	mov	r3, r0
  800131c:	2b00      	cmp	r3, #0
  800131e:	d10f      	bne.n	8001340 <wifi_server+0x1a0>
-            last_http_activity = HAL_GetTick(); // Client connesso: resetta il timer di inattività!
+            last_http_activity = HAL_GetTick(); // Client connesso: resetta il timer di inattività
  8001320:	f004 f810 	bl	8005344 <HAL_GetTick>
  8001324:	4603      	mov	r3, r0
  8001326:	4a14      	ldr	r2, [pc, #80]	@ (8001378 <wifi_server+0x1d8>)
@@ -2064,7 +2055,7 @@ static bool WebServerProcess(void)
  8001448:	4a5e      	ldr	r2, [pc, #376]	@ (80015c4 <WebServerProcess+0x22c>)
  800144a:	6013      	str	r3, [r2, #0]
 
-                // --- NUOVO PARSING SMART MODE ---
+
                 if (strstr((char *)resp, "smart_active=1")) {
  800144c:	495e      	ldr	r1, [pc, #376]	@ (80015c8 <WebServerProcess+0x230>)
  800144e:	4856      	ldr	r0, [pc, #344]	@ (80015a8 <WebServerProcess+0x210>)
@@ -2100,7 +2091,7 @@ static bool WebServerProcess(void)
  8001482:	4603      	mov	r3, r0
  8001484:	4a53      	ldr	r2, [pc, #332]	@ (80015d4 <WebServerProcess+0x23c>)
  8001486:	6013      	str	r3, [r2, #0]
-                // -------------------------------
+
 
                 cfg_days_mask = 0;
  8001488:	4b53      	ldr	r3, [pc, #332]	@ (80015d8 <WebServerProcess+0x240>)
@@ -2350,12 +2341,11 @@ void UpdateIrrigationLogic(void) {
 08001684 <RefreshSystemState>:
 
 // Funzione per aggiornare sensori e logica decisionale
-// Va chiamata nella sincronizzazione oraria e subito dopo aver ricevuto un POST
 void RefreshSystemState(void) {
  8001684:	b580      	push	{r7, lr}
  8001686:	b086      	sub	sp, #24
  8001688:	af00      	add	r7, sp, #0
-    // 1. Lettura Sensori (per avere dati freschi su Score e Dashboard)
+    //Lettura Sensori (per avere dati freschi su Score e Dashboard)
     float current_T = BSP_TSENSOR_ReadTemp();
  800168a:	f003 fb8b 	bl	8004da4 <BSP_TSENSOR_ReadTemp>
  800168e:	ed87 0a04 	vstr	s0, [r7, #16]
@@ -2366,7 +2356,7 @@ void RefreshSystemState(void) {
  800169a:	f003 fb59 	bl	8004d50 <BSP_PSENSOR_ReadPressure>
  800169e:	ed87 0a02 	vstr	s0, [r7, #8]
 
-    // 2. Calcolo Logica Temporale (Oggi vs Domani)
+    //Calcolo Logica Temporale (Oggi vs Domani)
     int irrigation_end_minute = cfg_start_hour * 60 + cfg_duration_min;
  80016a2:	4b26      	ldr	r3, [pc, #152]	@ (800173c <RefreshSystemState+0xb8>)
  80016a4:	681a      	ldr	r2, [r3, #0]
@@ -2420,7 +2410,7 @@ void RefreshSystemState(void) {
  80016f4:	6013      	str	r3, [r2, #0]
     }
 
-    // 3. Determina probabilità attiva (Simulata o Reale)
+    //Determina probabilità attiva (Simulata o Reale)
     int prob_to_use = (sim_mode_active) ? sim_rain_prob : real_rain_prob;
  80016f6:	4b18      	ldr	r3, [pc, #96]	@ (8001758 <RefreshSystemState+0xd4>)
  80016f8:	681b      	ldr	r3, [r3, #0]
@@ -2439,12 +2429,10 @@ void RefreshSystemState(void) {
  8001712:	2300      	movs	r3, #0
  8001714:	617b      	str	r3, [r7, #20]
 
-    // 4. Aggiorna Skip Irrigation (Logica Manuale base)
-    // (UpdateIrrigationLogic usa le variabili globali appena aggiornate sopra)
     UpdateIrrigationLogic();
  8001716:	f7ff ff77 	bl	8001608 <UpdateIrrigationLogic>
 
-    // 5. Calcola Score Smart (Logica AI)
+    //Calcola Score Smart (Logica AI)
     last_calculated_score = CalculateSmartScore(current_T, current_H, current_P, prob_to_use);
  800171a:	6978      	ldr	r0, [r7, #20]
  800171c:	ed97 1a02 	vldr	s2, [r7, #8]
@@ -2605,7 +2593,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  8001836:	edc7 0a02 	vstr	s1, [r7, #8]
  800183a:	ed87 1a01 	vstr	s2, [r7, #4]
  800183e:	6038      	str	r0, [r7, #0]
-    // 1. Normalizzazione degli input per sicurezza
+    //Normalizzazione degli input
     if (h < 0.0f) h = 0.0f;
  8001840:	edd7 7a02 	vldr	s15, [r7, #8]
  8001844:	eef5 7ac0 	vcmpe.f32	s15, #0.0
@@ -2634,7 +2622,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  800187a:	2364      	movs	r3, #100	@ 0x64
  800187c:	603b      	str	r3, [r7, #0]
 
-    // 2. Fattore Temperatura (0-100)
+    //Fattore Temperatura (0-100)
     // Sotto i 10 gradi il bisogno è 0. A 40 gradi il bisogno è massimo (100).
     float t_factor = 0.0f;
  800187e:	f04f 0300 	mov.w	r3, #0
@@ -2662,7 +2650,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  80018c2:	627b      	str	r3, [r7, #36]	@ 0x24
     }
 
-    // 3. Fattore Umidità (0-100)
+    //Fattore Umidità (0-100)
     // Più è bassa l'umidità, più sale il bisogno.
     float h_factor = 100.0f - h;
  80018c4:	ed9f 7a3c 	vldr	s14, [pc, #240]	@ 80019b8 <CalculateSmartScore+0x18c>
@@ -2670,9 +2658,8 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  80018cc:	ee77 7a67 	vsub.f32	s15, s14, s15
  80018d0:	edc7 7a07 	vstr	s15, [r7, #28]
 
-    // 4. Bisogno Base (Media pesata)
+    // Bisogno Base (Media pesata)
     // Diamo più peso alla temperatura (es. 65%) che all'umidità (35%).
-    // Puoi variare questi pesi (es. 0.6f e 0.4f) basta che la somma faccia 1.0.
     float base_need = (t_factor * 0.65f) + (h_factor * 0.35f);
  80018d4:	edd7 7a09 	vldr	s15, [r7, #36]	@ 0x24
  80018d8:	ed9f 7a3a 	vldr	s14, [pc, #232]	@ 80019c4 <CalculateSmartScore+0x198>
@@ -2683,7 +2670,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  80018ec:	ee77 7a27 	vadd.f32	s15, s14, s15
  80018f0:	edc7 7a06 	vstr	s15, [r7, #24]
 
-    // 5. Correzione Pioggia (Moltiplicatore)
+    //Correzione Pioggia (Moltiplicatore)
     // Se rain_prob è 100%, il moltiplicatore è 0.0 -> bisogno azzerato.
     // Se rain_prob è 0%, il moltiplicatore è 1.0 -> bisogno inalterato.
     float rain_modifier = 1.0f - (rain_prob / 100.0f);
@@ -2703,7 +2690,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  800191a:	ee67 7a27 	vmul.f32	s15, s14, s15
  800191e:	edc7 7a08 	vstr	s15, [r7, #32]
 
-    // 6. Correzione Pressione (Opzionale e molto lieve)
+    // Correzione Pressione (Opzionale e molto lieve)
     // Interviene solo se la probabilità di pioggia non è già estrema
     if (p > 0.0f) { // Controllo validità pressione
  8001922:	edd7 7a01 	vldr	s15, [r7, #4]
@@ -2736,7 +2723,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
         }
     }
 
-    // 7. Clamping finale di sicurezza
+    // Clamping finale
     if (final_score < 0.0f) final_score = 0.0f;
  8001976:	edd7 7a08 	vldr	s15, [r7, #32]
  800197a:	eef5 7ac0 	vcmpe.f32	s15, #0.0
@@ -2772,6 +2759,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
  80019d0:	447f0000 	.word	0x447f0000
 
 080019d4 <SendWebPage>:
+
 static WIFI_Status_t SendWebPage(void)
 {
  80019d4:	e92d 43f0 	stmdb	sp!, {r4, r5, r6, r7, r8, r9, lr}
@@ -2799,7 +2787,6 @@ static WIFI_Status_t SendWebPage(void)
  80019fa:	ed87 0a12 	vstr	s0, [r7, #72]	@ 0x48
 
   // Recupero stato sistema
-  // real_rain_prob è già impostato su Oggi o Domani dal loop principale
   int display_prob = (sim_mode_active) ? sim_rain_prob : real_rain_prob;
  80019fe:	4b75      	ldr	r3, [pc, #468]	@ (8001bd4 <SendWebPage+0x200>)
  8001a00:	681b      	ldr	r3, [r3, #0]
@@ -2828,7 +2815,7 @@ static WIFI_Status_t SendWebPage(void)
   char *status_text;
   char *time_label;
 
-  // 3. Determina l'etichetta temporale (Oggi/Domani/Sim)
+  // Determina l'etichetta temporale (Oggi/Domani/Sim)
   if (sim_mode_active) time_label = "Simulazione";
  8001a2a:	4b6a      	ldr	r3, [pc, #424]	@ (8001bd4 <SendWebPage+0x200>)
  8001a2c:	681b      	ldr	r3, [r3, #0]
@@ -2847,12 +2834,12 @@ static WIFI_Status_t SendWebPage(void)
  8001a44:	4b69      	ldr	r3, [pc, #420]	@ (8001bec <SendWebPage+0x218>)
  8001a46:	65fb      	str	r3, [r7, #92]	@ 0x5c
 
-  // 4. Logica Decisionale per il Banner (Testo e Colore)
+  // Logica Decisionale per il Banner (Testo e Colore)
   if (is_running) {
  8001a48:	6c3b      	ldr	r3, [r7, #64]	@ 0x40
  8001a4a:	2b00      	cmp	r3, #0
  8001a4c:	d004      	beq.n	8001a58 <SendWebPage+0x84>
-      // PRIORITÀ MASSIMA: Se l'acqua scorre, sfondo VERDE e testo chiaro
+      //Se l'acqua scorre, sfondo VERDE e testo chiaro
       status_class = "bg-ok";
  8001a4e:	4b68      	ldr	r3, [pc, #416]	@ (8001bf0 <SendWebPage+0x21c>)
  8001a50:	667b      	str	r3, [r7, #100]	@ 0x64
@@ -3650,7 +3637,6 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
     printf("1. DNS Resolve (www.google.com)... ");
  8002040:	489f      	ldr	r0, [pc, #636]	@ (80022c0 <UpdateTimeHTTP+0x2c0>)
  8002042:	f008 fee3 	bl	800ae0c <iprintf>
-
 
 
     if (WIFI_GetHostAddress("www.google.com", ipAddr, 4) != WIFI_STATUS_OK) {

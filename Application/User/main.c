@@ -21,7 +21,6 @@
 #define WIFI_WRITE_TIMEOUT 10000
 #define WIFI_READ_TIMEOUT  10000
 #define SOCKET             0
-#define STOP_MODE_TIMER 600000 // timer stop mode
 #define TIME_PROTOCOL_DELTA 2208988800U
 
 #define LOG(a) printf a
@@ -31,7 +30,6 @@ static uint8_t http[1024];
 static uint8_t IP_Addr[4];
 
 // Handle UART Globale
-// MODIFICA 1: Aggiunto extern per evitare "multiple definition"
 extern UART_HandleTypeDef hDiscoUart;
 
 #ifdef __GNUC__
@@ -52,7 +50,7 @@ uint8_t cfg_days_mask = 127;
 
 int sim_mode_active = 0;
 int sim_rain_prob = 30;
-int real_rain_prob = -1; //   variabile "Attiva" usata da tutto il programma
+int real_rain_prob = -1;
 int buf_rain_today = -1;         // dato grezzo API Oggi
 int buf_rain_tomorrow = -1;      //  dato grezzo API Domani
 int is_showing_tomorrow = 0;     // Flag per la UI (0 = Oggi, 1 = Domani)
@@ -62,8 +60,11 @@ int smart_mode_active = 0;       // 0 = Manuale, 1 = Smart Auto
 int smart_threshold = 60;        // Soglia punteggio per irrigare (Default 60)
 int last_calculated_score = 0;   // Per visualizzazione web
 
+
 #define LAT "45.03"
 #define LON "10.74"
+#define STOP_MODE_TIMER 600000 //20000
+
 
 typedef struct {
     uint8_t hours;
@@ -78,9 +79,11 @@ uint32_t last_second_tick = 0;
 uint32_t last_sync_tick = 0;
 uint32_t sync_interval = 3600000;
 uint32_t last_http_activity=0;
+
 // Variabili per gestire il risveglio sicuro dallo Stop Mode
 volatile uint8_t system_is_sleeping = 0;
 volatile uint8_t wifi_irq_pending = 0;
+
 //Salvataggio impostazioni in MEMORIA FLASH
 // Indirizzo ultima pagina (STM32L475 1MB = Bank 2, Page 255)
 #define FLASH_STORAGE_ADDR 0x080FF800
@@ -115,6 +118,7 @@ void ApplyIrrigationControl(void);
 void LoadSettings(void);
 void SaveSettings(void);
 void EXTI15_10_IRQHandler(void);
+
 // Fix printf
 int _write(int file, char *ptr, int len) {
     HAL_UART_Transmit(&hDiscoUart, (uint8_t*)ptr, len, 1000);
@@ -143,56 +147,54 @@ int main(void)
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 
 
+	// 1. INIZIALIZZAZIONE SERIALE
+	hDiscoUart.Instance = DISCOVERY_COM1;
+	hDiscoUart.Init.BaudRate = 115200;
+	hDiscoUart.Init.WordLength = UART_WORDLENGTH_8B;
+	hDiscoUart.Init.StopBits = UART_STOPBITS_1;
+	hDiscoUart.Init.Parity = UART_PARITY_NONE;
+	hDiscoUart.Init.Mode = UART_MODE_TX_RX;
+	hDiscoUart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	hDiscoUart.Init.OverSampling = UART_OVERSAMPLING_16;
+	hDiscoUart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
+	hDiscoUart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
 
-  // 1. INIZIALIZZAZIONE SERIALE
-  hDiscoUart.Instance = DISCOVERY_COM1;
-  hDiscoUart.Init.BaudRate = 115200;
-  hDiscoUart.Init.WordLength = UART_WORDLENGTH_8B;
-  hDiscoUart.Init.StopBits = UART_STOPBITS_1;
-  hDiscoUart.Init.Parity = UART_PARITY_NONE;
-  hDiscoUart.Init.Mode = UART_MODE_TX_RX;
-  hDiscoUart.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  hDiscoUart.Init.OverSampling = UART_OVERSAMPLING_16;
-  hDiscoUart.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  hDiscoUart.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
+	BSP_COM_Init(COM1, &hDiscoUart);
 
-  BSP_COM_Init(COM1, &hDiscoUart);
+	printf("\r\n\r\n==================================\r\n");
+	printf("   SMART GARDEN BOOTING... \r\n");
+	printf("==================================\r\n");
 
-  printf("\r\n\r\n==================================\r\n");
-  printf("   SMART GARDEN BOOTING... \r\n");
-  printf("==================================\r\n");
+	// INIZIALIZZAZIONE SENSORI
+	printf("Init Sensori... ");
 
-  // 2. INIZIALIZZAZIONE SENSORI
-  printf("Init Sensori... ");
+	if(BSP_HSENSOR_Init() != HSENSOR_OK) printf("[ERR HUM] ");
+	else printf("[HUM OK] ");
 
-  if(BSP_HSENSOR_Init() != HSENSOR_OK) printf("[ERR HUM] ");
-  else printf("[HUM OK] ");
+	if(BSP_TSENSOR_Init() != TSENSOR_OK) printf("[ERR TMP] ");
+	else printf("[TMP OK] ");
 
-  if(BSP_TSENSOR_Init() != TSENSOR_OK) printf("[ERR TMP] ");
-  else printf("[TMP OK] ");
+	if(BSP_PSENSOR_Init() != PSENSOR_OK) printf("[ERR PRS] ");
+	else printf("[PRS OK] ");
 
-  if(BSP_PSENSOR_Init() != PSENSOR_OK) printf("[ERR PRS] ");
-  else printf("[PRS OK] ");
+	printf("\r\n");
 
-  printf("\r\n");
+	LoadSettings();
 
-  LoadSettings();
+	HAL_Delay(500);
 
-  HAL_Delay(500);
+	// Test lettura valori
+	float t_test = BSP_TSENSOR_ReadTemp();
+	float h_test = BSP_HSENSOR_ReadHumidity();
+	printf("Test Lettura: T=%.2f H=%.2f\r\n", t_test, h_test);
+	if(t_test == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
 
-  // Test lettura valori
-  float t_test = BSP_TSENSOR_ReadTemp();
-  float h_test = BSP_HSENSOR_ReadHumidity();
-  printf("Test Lettura: T=%.2f H=%.2f\r\n", t_test, h_test);
-  if(t_test == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
+	BSP_LED_Init(LED2);
 
-  BSP_LED_Init(LED2);
+	// INIZIALIZZA IL BOTTONE BLU PER GENERARE INTERRUPT
+	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
-  // INIZIALIZZA IL BOTTONE BLU PER GENERARE UN INTERRUPT
-    BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
-
-  // 4. AVVIO WIFI
-  wifi_server();
+	wifi_server();
 }
 
 static int wifi_start(void) {
@@ -232,56 +234,49 @@ int wifi_server(void)
   last_http_activity = HAL_GetTick(); // Inizializza il timer di inattività
 
   do {
-        // 1. LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
+        // LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
         bool is_sleeping = (HAL_GetTick() - last_http_activity > STOP_MODE_TIMER);
 
         if (is_sleeping) {
-                    LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
+			LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
 
-                    // 1. Chiudiamo il socket server in modo sicuro
-                    WIFI_StopServer(SOCKET);
-                    HAL_Delay(300); // Pausa maggiorata
+			// Chiusura del socket server in modo sicuro
+			WIFI_StopServer(SOCKET);
+			HAL_Delay(300);
 
-                    // Spegniamo l'interrupt Wi-Fi per evitare risvegli indesiderati
-                    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+			// Spegnimento interrupt Wi-Fi per evitare risvegli indesiderati
+			HAL_NVIC_DisableIRQ(EXTI1_IRQn);
 
-                    //Abilita stop mode
+			//Abilita stop mode
+			HAL_SuspendTick();
+			HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
-                    HAL_SuspendTick();
-                    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
 
-                    // --- IL SISTEMA È CONGELATO QUI ---
+			// RISVEGLIO
+			SystemClock_Config();
+			HAL_ResumeTick();
 
-                    // --- RISVEGLIO ---
-                    SystemClock_Config();
-                    HAL_ResumeTick();
+			// Riattivazione dell'interrupt del Wi-Fi
+			HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+			HAL_Delay(300);
 
-                    // Riattiviamo l'interrupt del Wi-Fi
-                    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-                    HAL_Delay(300); // Fondamentale: diamo tempo all'hardware SPI di riprendersi
+			LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
 
-                    LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
+			UpdateTimeHTTP(&orario);
+			HAL_Delay(500);
 
-                    // 2. Sincronizziamo l'orario PRIMA di riaprire il Server
-                    // In questo modo evitiamo che il chip Wi-Fi debba gestire il Socket 0 (Server)
-                    // e il Socket 1 (Client Google) contemporaneamente appena sveglio.
-                    UpdateTimeHTTP(&orario);
+			// riapertura del Server Web
+			if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
+				LOG(("Server riaperto con successo.\n"));
+			} else {
+				LOG(("ATTENZIONE: Errore riapertura Server.\n"));
+			}
 
-                    HAL_Delay(500);
+			last_http_activity = HAL_GetTick();
+			continue;
+		}
 
-                    // 3. ORA riapriamo il Server Web
-                    if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
-                        LOG(("Server riaperto con successo.\n"));
-                    } else {
-                        LOG(("ATTENZIONE: Errore riapertura Server.\n"));
-                    }
 
-                    // Resetta il timer e riparti
-                    last_http_activity = HAL_GetTick();
-                    continue;
-                }
-
-        // 2. GESTIONE SERVER E IRRIGAZIONE (Quando è sveglio)
         uint8_t RemoteIP[4];
         uint16_t RemotePort;
 
@@ -300,9 +295,9 @@ int wifi_server(void)
             last_sync_tick = HAL_GetTick();
         }
 
-        // In modalità normale ascoltiamo la rete
+
         if (WIFI_STATUS_OK == WIFI_WaitServerConnection(SOCKET, 1000, RemoteIP, sizeof(RemoteIP), &RemotePort)) {
-            last_http_activity = HAL_GetTick(); // Client connesso: resetta il timer di inattività!
+            last_http_activity = HAL_GetTick(); // Client connesso: resetta il timer di inattività
             StopServer = WebServerProcess();
             WIFI_CloseServerConnection(SOCKET);
             HAL_Delay(500);
@@ -339,7 +334,7 @@ static bool WebServerProcess(void)
                 p = strstr((char *)resp, "cfg_dur=");
                 if (p) cfg_duration_min = atoi(p + 8);
 
-                // --- NUOVO PARSING SMART MODE ---
+
                 if (strstr((char *)resp, "smart_active=1")) {
                     smart_mode_active = 1;
                 } else {
@@ -348,7 +343,7 @@ static bool WebServerProcess(void)
 
                 char *p_smart = strstr((char *)resp, "smart_th=");
                 if (p_smart) smart_threshold = atoi(p_smart + 9);
-                // -------------------------------
+
 
                 cfg_days_mask = 0;
                 if (strstr((char *)resp, "day_0=1")) cfg_days_mask |= (1<<0);
@@ -391,14 +386,13 @@ void UpdateIrrigationLogic(void) {
 }
 
 // Funzione per aggiornare sensori e logica decisionale
-// Va chiamata nella sincronizzazione oraria e subito dopo aver ricevuto un POST
 void RefreshSystemState(void) {
-    // 1. Lettura Sensori (per avere dati freschi su Score e Dashboard)
+    //Lettura Sensori (per avere dati freschi su Score e Dashboard)
     float current_T = BSP_TSENSOR_ReadTemp();
     float current_H = BSP_HSENSOR_ReadHumidity();
     float current_P = BSP_PSENSOR_ReadPressure();
 
-    // 2. Calcolo Logica Temporale (Oggi vs Domani)
+    //Calcolo Logica Temporale (Oggi vs Domani)
     int irrigation_end_minute = cfg_start_hour * 60 + cfg_duration_min;
     int current_minute_abs = orario.hours * 60 + orario.minutes;
 
@@ -410,15 +404,13 @@ void RefreshSystemState(void) {
         real_rain_prob = buf_rain_today;
     }
 
-    // 3. Determina probabilità attiva (Simulata o Reale)
+    //Determina probabilità attiva (Simulata o Reale)
     int prob_to_use = (sim_mode_active) ? sim_rain_prob : real_rain_prob;
     if(prob_to_use == -1) prob_to_use = 0;
 
-    // 4. Aggiorna Skip Irrigation (Logica Manuale base)
-    // (UpdateIrrigationLogic usa le variabili globali appena aggiornate sopra)
     UpdateIrrigationLogic();
 
-    // 5. Calcola Score Smart (Logica AI)
+    //Calcola Score Smart (Logica AI)
     last_calculated_score = CalculateSmartScore(current_T, current_H, current_P, prob_to_use);
 }
 
@@ -457,13 +449,13 @@ void ApplyIrrigationControl(void) {
  * Logica: Calcola un bisogno base (Temp + Umidità) e lo riduce in base alla pioggia.
  */
 int CalculateSmartScore(float t, float h, float p, int rain_prob) {
-    // 1. Normalizzazione degli input per sicurezza
+    //Normalizzazione degli input
     if (h < 0.0f) h = 0.0f;
     if (h > 100.0f) h = 100.0f;
     if (rain_prob < 0) rain_prob = 0;
     if (rain_prob > 100) rain_prob = 100;
 
-    // 2. Fattore Temperatura (0-100)
+    //Fattore Temperatura (0-100)
     // Sotto i 10 gradi il bisogno è 0. A 40 gradi il bisogno è massimo (100).
     float t_factor = 0.0f;
     if (t > 10.0f) {
@@ -471,16 +463,15 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
         if (t_factor > 100.0f) t_factor = 100.0f;
     }
 
-    // 3. Fattore Umidità (0-100)
+    //Fattore Umidità (0-100)
     // Più è bassa l'umidità, più sale il bisogno.
     float h_factor = 100.0f - h;
 
-    // 4. Bisogno Base (Media pesata)
+    // Bisogno Base (Media pesata)
     // Diamo più peso alla temperatura (es. 65%) che all'umidità (35%).
-    // Puoi variare questi pesi (es. 0.6f e 0.4f) basta che la somma faccia 1.0.
     float base_need = (t_factor * 0.65f) + (h_factor * 0.35f);
 
-    // 5. Correzione Pioggia (Moltiplicatore)
+    //Correzione Pioggia (Moltiplicatore)
     // Se rain_prob è 100%, il moltiplicatore è 0.0 -> bisogno azzerato.
     // Se rain_prob è 0%, il moltiplicatore è 1.0 -> bisogno inalterato.
     float rain_modifier = 1.0f - (rain_prob / 100.0f);
@@ -488,7 +479,7 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
     // Calcolo parziale
     float final_score = base_need * rain_modifier;
 
-    // 6. Correzione Pressione (Opzionale e molto lieve)
+    // Correzione Pressione (Opzionale e molto lieve)
     // Interviene solo se la probabilità di pioggia non è già estrema
     if (p > 0.0f) { // Controllo validità pressione
         if (p < 1000.0f) {
@@ -498,12 +489,13 @@ int CalculateSmartScore(float t, float h, float p, int rain_prob) {
         }
     }
 
-    // 7. Clamping finale di sicurezza
+    // Clamping finale
     if (final_score < 0.0f) final_score = 0.0f;
     if (final_score > 100.0f) final_score = 100.0f;
 
     return (int)final_score;
 }
+
 static WIFI_Status_t SendWebPage(void)
 {
   uint16_t SentDataLength;
@@ -518,7 +510,6 @@ static WIFI_Status_t SendWebPage(void)
   P = BSP_PSENSOR_ReadPressure();
 
   // Recupero stato sistema
-  // real_rain_prob è già impostato su Oggi o Domani dal loop principale
   int display_prob = (sim_mode_active) ? sim_rain_prob : real_rain_prob;
 
   // Legge fisicamente il pin per sapere se sta irrigando ORA
@@ -528,13 +519,13 @@ static WIFI_Status_t SendWebPage(void)
   char *status_text;
   char *time_label;
 
-  // 3. Determina l'etichetta temporale (Oggi/Domani/Sim)
+  // Determina l'etichetta temporale (Oggi/Domani/Sim)
   if (sim_mode_active) time_label = "Simulazione";
   else time_label = (is_showing_tomorrow) ? "Domani" : "Oggi";
 
-  // 4. Logica Decisionale per il Banner (Testo e Colore)
+  // Logica Decisionale per il Banner (Testo e Colore)
   if (is_running) {
-      // PRIORITÀ MASSIMA: Se l'acqua scorre, sfondo VERDE e testo chiaro
+      //Se l'acqua scorre, sfondo VERDE e testo chiaro
       status_class = "bg-ok";
       status_text = "IRRIGAZIONE IN CORSO...";
   }
@@ -774,7 +765,6 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
 
     // DNS Resolve Google
     printf("1. DNS Resolve (www.google.com)... ");
-
 
 
     if (WIFI_GetHostAddress("www.google.com", ipAddr, 4) != WIFI_STATUS_OK) {

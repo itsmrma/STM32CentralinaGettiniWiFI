@@ -64,7 +64,7 @@ int last_calculated_score = 0;   // Per visualizzazione web
 
 #define LAT "45.03"
 #define LON "10.74"
-#define STOP_MODE_TIMER 20000
+#define STOP_MODE_TIMER 300000 //in ms
 
 
 typedef struct {
@@ -132,9 +132,9 @@ int _write(int file, char *ptr, int len) {
 
 int main(void)
 {
-  HAL_Init();
-  SystemClock_Config();
-  RTC_Init();
+   HAL_Init();
+   SystemClock_Config();
+   RTC_Init();
 
 	// --- INIZIALIZZAZIONE PIN RELÈ (PA4 - Arduino D7) ---
 	// Abilita il clock per la porta GPIOA
@@ -197,7 +197,7 @@ int main(void)
 
 	BSP_LED_Init(LED2);
 
-	// INIZIALIZZA IL BOTTONE BLU PER GENERARE INTERRUPT
+	//INIZIALIZZA IL BOTTONE BLU PER GENERARE INTERRUPT
 	BSP_PB_Init(BUTTON_USER, BUTTON_MODE_EXTI);
 
 	wifi_server();
@@ -255,7 +255,7 @@ int wifi_server(void)
 	  		  uint32_t current_sec_of_day = (orario.hours * 3600) + (orario.minutes * 60) + orario.seconds;
 
 	  		  // Calcolo il target includendo i minuti (meno i soliti 2 minuti / 120 secondi d'anticipo)
-	  		  int32_t target_sec_of_day = (cfg_start_hour * 3600) + (cfg_start_minute * 60) - 120;
+	  		  int32_t target_sec_of_day = (cfg_start_hour * 3600) + (cfg_start_minute * 60) - 30;
 
 	  		  if (target_sec_of_day < 0) target_sec_of_day += 86400;
 
@@ -379,9 +379,9 @@ void UpdateIrrigationLogic(void) {
     }
 }
 
-// Funzione per aggiornare sensori e logica decisionale
+//Aggiorna sensori e logica decisionale
 void RefreshSystemState(void) {
-    //Lettura Sensori (per avere dati freschi su Score e Dashboard)
+    //Lettura Sensori
     float current_T = BSP_TSENSOR_ReadTemp();
     float current_H = BSP_HSENSOR_ReadHumidity();
     float current_P = BSP_PSENSOR_ReadPressure();
@@ -404,7 +404,7 @@ void RefreshSystemState(void) {
 
     UpdateIrrigationLogic();
 
-    //Calcola Score Smart (Logica AI)
+    //Calcola Score Smart
     last_calculated_score = CalculateSmartScore(current_T, current_H, current_P, prob_to_use);
 }
 
@@ -1018,11 +1018,11 @@ void RTC_Init(void) {
 void Enter_LowPower_State(uint32_t sleep_duration_sec) {
     LOG(("\n[PWR] Inizio sequenza di spegnimento...\n"));
 
-    //1. SPEGNIMENTO OUTPUT
+    //SPEGNIMENTO OUTPUT
     BSP_LED_Off(LED2);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // Sicurezza: spegne il relè
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 
-    //2. DISCONNESSIONE E SPEGNIMENTO WI-FI
+    //DISCONNESSIONE E SPEGNIMENTO WI-FI
     WIFI_StopServer(SOCKET);
     HAL_Delay(100);
     WIFI_Disconnect();
@@ -1032,17 +1032,16 @@ void Enter_LowPower_State(uint32_t sleep_duration_sec) {
     __HAL_RCC_GPIOE_CLK_ENABLE();
     HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
 
-    //Disabilita l'interrupt del Wi-Fi
+    //Disabilita l'interrupt del wi-fi
     HAL_NVIC_DisableIRQ(EXTI1_IRQn);
 
-    // 3. IMPOSTAZIONE SVEGLIA RTC
-    if (sleep_duration_sec > 60000) sleep_duration_sec = 60000;
+    //IMPOSTAZIONE SVEGLIA RTC
+    if (sleep_duration_sec > 3600) sleep_duration_sec = 3600;
     LOG(("[PWR] Risveglio programmato tra %ld secondi...\n", sleep_duration_sec));
     HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, sleep_duration_sec, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
 
-    // 4. SOSPENSIONE SISTEMA (STOP MODE)
-    HAL_SuspendTick(); // Ferma il battito di sistema
-    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+    HAL_SuspendTick();
+    HAL_PWREx_EnterSTOP1Mode(PWR_STOPENTRY_WFI);
 }
 
 void Exit_LowPower_State(void) {

@@ -20,8 +20,8 @@
 ../Application/User/main.c:965:6:LoadSettings	2
 ../Application/User/main.c:987:6:RTC_Init	1
 ../Application/User/main.c:1018:6:Enter_LowPower_State	2
-../Application/User/main.c:1048:6:Exit_LowPower_State	3
-../Application/User/main.c:1085:6:RTC_WKUP_IRQHandler	1
-../Application/User/main.c:1090:6:EXTI15_10_IRQHandler	1
-../Application/User/main.c:1094:6:HAL_GPIO_EXTI_Callback	2
-../Application/User/main.c:1101:6:SPI3_IRQHandler	1
+../Application/User/main.c:1047:6:Exit_LowPower_State	3
+../Application/User/main.c:1084:6:RTC_WKUP_IRQHandler	1
+../Application/User/main.c:1089:6:EXTI15_10_IRQHandler	1
+../Application/User/main.c:1093:6:HAL_GPIO_EXTI_Callback	2
+../Application/User/main.c:1100:6:SPI3_IRQHandler	1

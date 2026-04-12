@@ -61,6 +61,8 @@ int smart_mode_active = 0;       // 0 = Manuale, 1 = Smart Auto
 int smart_threshold = 60;        // Soglia punteggio per irrigare (Default 60)
 int last_calculated_score = 0;   // Per visualizzazione web
 
+float T,H,P;
+
 
 #define LAT "45.03"
 #define LON "10.74"
@@ -189,11 +191,12 @@ int main(void)
 
 	HAL_Delay(500);
 
-	// Test lettura valori
-	float t_test = BSP_TSENSOR_ReadTemp();
-	float h_test = BSP_HSENSOR_ReadHumidity();
-	printf("Test Lettura: T=%.2f H=%.2f\r\n", t_test, h_test);
-	if(t_test == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
+    //Lettura Sensori
+    T = BSP_TSENSOR_ReadTemp();
+    H = BSP_HSENSOR_ReadHumidity();
+    P = BSP_PSENSOR_ReadPressure();
+	printf("Test Lettura: T=%.2f H=%.2f\r\n", T, H);
+	if(T == 0.0f) printf("ATTENZIONE: Se leggi 0.00 controlla il flag -u _printf_float nel linker!\r\n");
 
 	BSP_LED_Init(LED2);
 
@@ -279,6 +282,11 @@ int wifi_server(void)
 
         if (HAL_GetTick() - last_sync_tick >= sync_interval) {
             LOG(("\n--- Auto Sync ---\n"));
+            //aggiorno dati sensori solo a cadenza oraria
+            T = BSP_TSENSOR_ReadTemp();
+            H = BSP_HSENSOR_ReadHumidity();
+            P = BSP_PSENSOR_ReadPressure();
+
             UpdateTimeHTTP(&orario);
             CheckWeatherForecast();
             UpdateIrrigationLogic();
@@ -381,10 +389,6 @@ void UpdateIrrigationLogic(void) {
 
 //Aggiorna sensori e logica decisionale
 void RefreshSystemState(void) {
-    //Lettura Sensori
-    float current_T = BSP_TSENSOR_ReadTemp();
-    float current_H = BSP_HSENSOR_ReadHumidity();
-    float current_P = BSP_PSENSOR_ReadPressure();
 
     //Calcolo Logica Temporale (Oggi vs Domani)
     int irrigation_end_minute = (cfg_start_hour * 60) + cfg_start_minute + cfg_duration_min; // <-- MODIFICATO
@@ -405,7 +409,7 @@ void RefreshSystemState(void) {
     UpdateIrrigationLogic();
 
     //Calcola Score Smart
-    last_calculated_score = CalculateSmartScore(current_T, current_H, current_P, prob_to_use);
+    last_calculated_score = CalculateSmartScore(T, H, P, prob_to_use);
 }
 
 void ApplyIrrigationControl(void) {
@@ -450,53 +454,47 @@ void ApplyIrrigationControl(void) {
     }
 }
 
-
-/*
- * Calcolo indice di bisogno idrico (0 - 100)
- * Logica: Calcola un bisogno base (Temp + Umidità) e lo riduce in base alla pioggia.
- */
 int CalculateSmartScore(float t, float h, float p, int rain_prob) {
-    //Normalizzazione degli input
+    //normalizzazione degli input
     if (h < 0.0f) h = 0.0f;
     if (h > 100.0f) h = 100.0f;
     if (rain_prob < 0) rain_prob = 0;
     if (rain_prob > 100) rain_prob = 100;
 
-    //Fattore Temperatura (0-100)
-    // Sotto i 10 gradi il bisogno è 0. A 40 gradi il bisogno è massimo (100).
+    //fattore temperatura(0-100)
+    //sotto i 10 gradi il bisogno è 0. A 40 gradi il bisogno è massimo (100).
     float t_factor = 0.0f;
     if (t > 10.0f) {
         t_factor = (t - 10.0f) * (100.0f / 30.0f); // Mappa 10->0, 40->100
         if (t_factor > 100.0f) t_factor = 100.0f;
     }
 
-    //Fattore Umidità (0-100)
+    //fattore umidità (0-100)
     // Più è bassa l'umidità, più sale il bisogno.
     float h_factor = 100.0f - h;
 
-    // Bisogno Base (Media pesata)
-    // Diamo più peso alla temperatura (es. 65%) che all'umidità (35%).
-    float base_need = (t_factor * 0.65f) + (h_factor * 0.35f);
+    //bisogno base
+    //Diamo più peso alla temperatura (65%) che all'umidità (35%).
+    float bisogno_base = (t_factor * 0.65f) + (h_factor * 0.35f);
 
     //Correzione Pioggia (Moltiplicatore)
-    // Se rain_prob è 100%, il moltiplicatore è 0.0 -> bisogno azzerato.
-    // Se rain_prob è 0%, il moltiplicatore è 1.0 -> bisogno inalterato.
-    float rain_modifier = 1.0f - (rain_prob / 100.0f);
+    //se rain_prob è 100%, il moltiplicatore è 0.0 -> bisogno azzerato.
+    //se rain_prob è 0%, il moltiplicatore è 1.0 -> bisogno inalterato.
+    float rain_modifier = 1.0f-(rain_prob / 100.0f);
 
-    // Calcolo parziale
-    float final_score = base_need * rain_modifier;
+    //calcolo parziale
+    float final_score = bisogno_base * rain_modifier;
 
-    // Correzione Pressione (Opzionale e molto lieve)
-    // Interviene solo se la probabilità di pioggia non è già estrema
-    if (p > 0.0f) { // Controllo validità pressione
+    //correzione pressione
+    if (p > 0.0f) {
         if (p < 1000.0f) {
-            final_score -= 5.0f; // Leggera riduzione per brutto tempo in arrivo
+            final_score -= 5.0f; //leggera riduzione per brutto tempo in arrivo
         } else if (p > 1020.0f) {
-            final_score += 5.0f; // Leggero aumento per alta pressione stabile
+            final_score += 5.0f; //leggero aumento per alta pressione stabile
         }
     }
 
-    // Clamping finale
+    //normalizzazione output finale
     if (final_score < 0.0f) final_score = 0.0f;
     if (final_score > 100.0f) final_score = 100.0f;
 
@@ -507,14 +505,9 @@ static WIFI_Status_t SendWebPage(void)
 {
   uint16_t SentDataLength;
   WIFI_Status_t ret = WIFI_STATUS_OK;
-  float H, T, P;
   uint32_t total_len, sent_len = 0;
   uint16_t chunk_len;
 
-  // Lettura Sensori
-  H = BSP_HSENSOR_ReadHumidity();
-  T = BSP_TSENSOR_ReadTemp();
-  P = BSP_PSENSOR_ReadPressure();
 
   // Recupero stato sistema
   int display_prob = (sim_mode_active) ? sim_rain_prob : real_rain_prob;

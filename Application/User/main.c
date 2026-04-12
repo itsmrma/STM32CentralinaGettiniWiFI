@@ -63,7 +63,7 @@ int last_calculated_score = 0;   // Per visualizzazione web
 
 #define LAT "45.03"
 #define LON "10.74"
-#define STOP_MODE_TIMER 600000 //20000
+#define STOP_MODE_TIMER 20000
 
 
 typedef struct {
@@ -88,7 +88,7 @@ volatile uint8_t wifi_irq_pending = 0;
 // Indirizzo ultima pagina (STM32L475 1MB = Bank 2, Page 255)
 #define FLASH_STORAGE_ADDR 0x080FF800
 #define CONFIG_MAGIC 0xCAFEBABE // Codice per capire se i dati sono validi
-
+RTC_HandleTypeDef hrtc;
 // Questa struct serve SOLO per salvare/caricare.
 typedef struct {
     uint32_t magic_number;
@@ -118,8 +118,11 @@ void ApplyIrrigationControl(void);
 void LoadSettings(void);
 void SaveSettings(void);
 void EXTI15_10_IRQHandler(void);
+void RTC_Init(void);
+void RTC_WKUP_IRQHandler(void);
+void Enter_LowPower_State(uint32_t sleep_duration_sec);
+void Exit_LowPower_State(void);
 
-// Fix printf
 int _write(int file, char *ptr, int len) {
     HAL_UART_Transmit(&hDiscoUart, (uint8_t*)ptr, len, 1000);
     return len;
@@ -129,21 +132,22 @@ int main(void)
 {
   HAL_Init();
   SystemClock_Config();
-
+  RTC_Init();
 
 	// --- INIZIALIZZAZIONE PIN RELÈ (PA4 - Arduino D7) ---
 	// Abilita il clock per la porta GPIOA
+
+
 	__HAL_RCC_GPIOA_CLK_ENABLE();
 
 	GPIO_InitTypeDef GPIO_InitStruct = {0};
-	GPIO_InitStruct.Pin = GPIO_PIN_4;           // Pin PA4 (Corrisponde a D7)
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP; // Output Push-Pull (Corretto per relè)
-	GPIO_InitStruct.Pull = GPIO_NOPULL;         // Nessuna resistenza interna
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;// Bassa velocità
+	GPIO_InitStruct.Pin = GPIO_PIN_4;            			// Pin PA4 (Corrisponde a D7)
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;  			// Output Push-Pull (Corretto per relè)
+	GPIO_InitStruct.Pull = GPIO_NOPULL;          			// Nessuna resistenza interna
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;  			// Bassa velocità
 
 	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-	// valvola chiusa (Basso)
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET);
 
 
@@ -234,47 +238,32 @@ int wifi_server(void)
   last_http_activity = HAL_GetTick(); // Inizializza il timer di inattività
 
   do {
-        // LOGICA DI RISPARMIO ENERGETICO (Attivazione col Bottone)
-        bool is_sleeping = (HAL_GetTick() - last_http_activity > STOP_MODE_TIMER);
 
-        if (is_sleeping) {
-			LOG(("\nEntrata in STOP Mode. Premi il bottone blu per risvegliare...\n"));
+	  //Controlla se è scaduto il timer di inattività web
+	  bool is_timeout = (HAL_GetTick() - last_http_activity > STOP_MODE_TIMER);
 
-			// Chiusura del socket server in modo sicuro
-			WIFI_StopServer(SOCKET);
-			HAL_Delay(300);
+	  //Controlla fisicamente lo stato del pin del relè (PA4)
+	  bool is_irrigating = (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) == GPIO_PIN_SET);
 
-			// Spegnimento interrupt Wi-Fi per evitare risvegli indesiderati
-			HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+	  //Va in STOP Mode SOLO se c'è timeout E NON sta irrigando
+	  bool is_sleeping = (is_timeout && !is_irrigating);
 
-			//Abilita stop mode
-			HAL_SuspendTick();
-			HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+	  if (is_sleeping) {
+
+		  uint32_t current_sec_of_day = orario.hours * 3600 + orario.minutes * 60 + orario.seconds;
+		  int32_t target_sec_of_day = (cfg_start_hour * 3600) - 120; // 2 minuti prima
+
+		  if (target_sec_of_day < 0) target_sec_of_day += 86400;
+
+		  int32_t sleep_duration_sec = target_sec_of_day - current_sec_of_day;
+		  if (sleep_duration_sec <= 0) sleep_duration_sec += 86400;
 
 
-			// RISVEGLIO
-			SystemClock_Config();
-			HAL_ResumeTick();
+		  Enter_LowPower_State(sleep_duration_sec);
+		  Exit_LowPower_State();
 
-			// Riattivazione dell'interrupt del Wi-Fi
-			HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-			HAL_Delay(300);
-
-			LOG((">>>Risveglio da STOP Mode. Server di nuovo online.\n"));
-
-			UpdateTimeHTTP(&orario);
-			HAL_Delay(500);
-
-			// riapertura del Server Web
-			if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
-				LOG(("Server riaperto con successo.\n"));
-			} else {
-				LOG(("ATTENZIONE: Errore riapertura Server.\n"));
-			}
-
-			last_http_activity = HAL_GetTick();
-			continue;
-		}
+		  continue;
+	  }
 
 
         uint8_t RemoteIP[4];
@@ -566,7 +555,7 @@ static WIFI_Status_t SendWebPage(void)
       }
   }
 
-  // --- INIZIO INVIO DATI (CHUNKS) ---
+  //INIZIO INVIO DATI (CHUNKS)
 
   // CHUNK 1: Header HTML statico
   total_len = strlen(HTML_HEADER);
@@ -773,7 +762,6 @@ void UpdateTimeHTTP(Time_Only_t *currentTime) {
     }
 
 
-
     printf("OK (%d.%d.%d.%d)\n", ipAddr[0], ipAddr[1], ipAddr[2], ipAddr[3]);
 
     // Connessione TCP Porta 80
@@ -975,6 +963,108 @@ void LoadSettings(void) {
     }
 }
 
+void RTC_Init(void) {
+    hrtc.Instance = RTC;
+    hrtc.Init.HourFormat = RTC_HOURFORMAT_24;
+    hrtc.Init.AsynchPrediv = 127;
+    hrtc.Init.SynchPrediv = 255;
+    hrtc.Init.OutPut = RTC_OUTPUT_DISABLE;
+
+    // Abilita il clock per il power controller e l'accesso al dominio di backup
+    __HAL_RCC_PWR_CLK_ENABLE();
+    HAL_PWR_EnableBkUpAccess();
+
+    // Abilita il clock LSI (Low-Speed Internal, ~32kHz, che funziona in STOP mode)
+    RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI;
+    RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);
+
+    // Seleziona LSI come sorgente per l'RTC
+    RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+    PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_RTC;
+    PeriphClkInitStruct.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+    HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct);
+
+    __HAL_RCC_RTC_ENABLE();
+    HAL_RTC_Init(&hrtc);
+
+    // Abilita l'interrupt per il WakeUp Timer dell'RTC
+    HAL_NVIC_SetPriority(RTC_WKUP_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(RTC_WKUP_IRQn);
+}
+
+void Enter_LowPower_State(uint32_t sleep_duration_sec) {
+    LOG(("\n[PWR] Inizio sequenza di spegnimento...\n"));
+
+    //1. SPEGNIMENTO OUTPUT
+    BSP_LED_Off(LED2);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, GPIO_PIN_RESET); // Sicurezza: spegne il relè
+
+    //2. DISCONNESSIONE E SPEGNIMENTO WI-FI
+    WIFI_StopServer(SOCKET);
+    HAL_Delay(100);
+    WIFI_Disconnect();
+    HAL_Delay(100);
+
+    //Hard Power-Off del chip Wi-Fi (forza il pin di Reset PE8 a LOW)
+    __HAL_RCC_GPIOE_CLK_ENABLE();
+    HAL_GPIO_WritePin(GPIOE, GPIO_PIN_8, GPIO_PIN_RESET);
+
+    //Disabilita l'interrupt del Wi-Fi
+    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+
+    // 3. IMPOSTAZIONE SVEGLIA RTC
+    if (sleep_duration_sec > 60000) sleep_duration_sec = 60000;
+    LOG(("[PWR] Risveglio programmato tra %ld secondi...\n", sleep_duration_sec));
+    HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, sleep_duration_sec, RTC_WAKEUPCLOCK_CK_SPRE_16BITS);
+
+    // 4. SOSPENSIONE SISTEMA (STOP MODE)
+    HAL_SuspendTick(); // Ferma il battito di sistema
+    HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+}
+
+void Exit_LowPower_State(void) {
+    // 1. RIPRISTINO CLOCK E BATTITO
+    SystemClock_Config();
+    HAL_ResumeTick();
+
+    // 2. PULIZIA SVEGLIA RTC
+    HAL_RTCEx_DeactivateWakeUpTimer(&hrtc);
+
+    LOG(("\n[PWR] >>> Risveglio! Riattivazione periferiche...\n"));
+
+    // 3. RIATTIVAZIONE WI-FI E RICONNESSIONE
+    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+    HAL_Delay(100);
+
+    // wifi_connect() richiama WIFI_Init(), che alzerà il pin PE8 riaccendendo il chip Wi-Fi
+    while (wifi_connect() != 0) {
+        LOG(("Tentativo di riconnessione fallito. Riprovo tra 2 secondi...\n"));
+        HAL_Delay(2000);
+    }
+
+    // 4. SINCRONIZZAZIONE DATI (NTP e Meteo)
+    UpdateTimeHTTP(&orario);
+    CheckWeatherForecast();
+    HAL_Delay(500);
+
+    // 5. RIAPERTURA SERVER WEB
+    if (WIFI_StartServer(SOCKET, WIFI_TCP_PROTOCOL, 1, "", PORT) == WIFI_STATUS_OK) {
+        LOG(("[PWR] Server riaperto con successo. Sistema operativo.\n"));
+    } else {
+        LOG(("[PWR] ATTENZIONE: Errore riapertura Server.\n"));
+    }
+
+    // Aggiorniamo il timer di inattività per evitare che torni subito in STOP
+    last_http_activity = HAL_GetTick();
+}
+
+
+void RTC_WKUP_IRQHandler(void) {
+    // Pulisce i flag hardware di interrupt del WakeUp timer
+    HAL_RTCEx_WakeUpTimerIRQHandler(&hrtc);
+}
 
 void EXTI15_10_IRQHandler(void) {
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_13);

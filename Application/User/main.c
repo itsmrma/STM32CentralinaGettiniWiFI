@@ -45,6 +45,7 @@ int fputc(int ch, FILE *f)
 
 // --- VARIABILI PROGETTO ---
 int cfg_start_hour = 20;
+int cfg_start_minute = 0;
 int cfg_duration_min = 10;
 uint8_t cfg_days_mask = 127;
 
@@ -87,12 +88,13 @@ volatile uint8_t wifi_irq_pending = 0;
 //Salvataggio impostazioni in MEMORIA FLASH
 // Indirizzo ultima pagina (STM32L475 1MB = Bank 2, Page 255)
 #define FLASH_STORAGE_ADDR 0x080FF800
-#define CONFIG_MAGIC 0xCAFEBABE // Codice per capire se i dati sono validi
+#define CONFIG_MAGIC 0xCAFEBAB2 // Codice per capire se i dati sono validi
 RTC_HandleTypeDef hrtc;
 // Questa struct serve SOLO per salvare/caricare.
 typedef struct {
     uint32_t magic_number;
     int saved_start_hour;
+    int saved_start_minute;
     int saved_duration_min;
     uint8_t saved_days_mask;
     int saved_smart_active;
@@ -249,22 +251,22 @@ int wifi_server(void)
 	  bool is_sleeping = (is_timeout && !is_irrigating);
 
 	  if (is_sleeping) {
+	  		  // Calcolo dei secondi assoluti nella giornata corrente
+	  		  uint32_t current_sec_of_day = (orario.hours * 3600) + (orario.minutes * 60) + orario.seconds;
 
-		  uint32_t current_sec_of_day = orario.hours * 3600 + orario.minutes * 60 + orario.seconds;
-		  int32_t target_sec_of_day = (cfg_start_hour * 3600) - 120; // 2 minuti prima
+	  		  // Calcolo il target includendo i minuti (meno i soliti 2 minuti / 120 secondi d'anticipo)
+	  		  int32_t target_sec_of_day = (cfg_start_hour * 3600) + (cfg_start_minute * 60) - 120;
 
-		  if (target_sec_of_day < 0) target_sec_of_day += 86400;
+	  		  if (target_sec_of_day < 0) target_sec_of_day += 86400;
 
-		  int32_t sleep_duration_sec = target_sec_of_day - current_sec_of_day;
-		  if (sleep_duration_sec <= 0) sleep_duration_sec += 86400;
+	  		  int32_t sleep_duration_sec = target_sec_of_day - current_sec_of_day;
+	  		  if (sleep_duration_sec <= 0) sleep_duration_sec += 86400;
 
+	  		  Enter_LowPower_State(sleep_duration_sec);
+	  		  Exit_LowPower_State();
 
-		  Enter_LowPower_State(sleep_duration_sec);
-		  Exit_LowPower_State();
-
-		  continue;
+	  		  continue;
 	  }
-
 
         uint8_t RemoteIP[4];
         uint16_t RemotePort;
@@ -319,6 +321,9 @@ static bool WebServerProcess(void)
 
                 p = strstr((char *)resp, "cfg_hour=");
                 if (p) cfg_start_hour = atoi(p + 9);
+
+                p = strstr((char *)resp, "cfg_min=");
+				if (p) cfg_start_minute = atoi(p + 8);
 
                 p = strstr((char *)resp, "cfg_dur=");
                 if (p) cfg_duration_min = atoi(p + 8);
@@ -382,8 +387,8 @@ void RefreshSystemState(void) {
     float current_P = BSP_PSENSOR_ReadPressure();
 
     //Calcolo Logica Temporale (Oggi vs Domani)
-    int irrigation_end_minute = cfg_start_hour * 60 + cfg_duration_min;
-    int current_minute_abs = orario.hours * 60 + orario.minutes;
+    int irrigation_end_minute = (cfg_start_hour * 60) + cfg_start_minute + cfg_duration_min; // <-- MODIFICATO
+	int current_minute_abs = (orario.hours * 60) + orario.minutes;
 
     if (current_minute_abs >= irrigation_end_minute) {
         is_showing_tomorrow = 1;
@@ -404,9 +409,22 @@ void RefreshSystemState(void) {
 }
 
 void ApplyIrrigationControl(void) {
-    int start_irrigation = 0;
+	int start_irrigation = 0;
 
-    int is_time_window = (orario.hours == cfg_start_hour && orario.minutes < cfg_duration_min);
+	// Converte orari in minuti assoluti da mezzanotte (0 - 1439)
+	int start_abs = (cfg_start_hour * 60) + cfg_start_minute;
+	int end_abs = start_abs + cfg_duration_min;
+	int curr_abs = (orario.hours * 60) + orario.minutes;
+
+	//Gestisce il caso in cui l'irrigazione scavalca la mezzanotte
+	int is_time_window = 0;
+	if (end_abs >= 1440) {
+		//Scavalca mezzanotte (es. avvio 23:55, fine 00:05 = 1445)
+		is_time_window = (curr_abs >= start_abs || curr_abs < (end_abs - 1440));
+	} else {
+		//Finestra normale nella stessa giornata
+		is_time_window = (curr_abs >= start_abs && curr_abs < end_abs);
+	}
 
     if (is_time_window) {
 
@@ -603,18 +621,19 @@ static WIFI_Status_t SendWebPage(void)
 
   // CHUNK 4: Pannello Pianificazione Manuale
 
-    strcpy((char *)http, "<form method='POST'>");
-    sprintf((char *)http + strlen((char *)http),
-      "<div class='panel'>"
-        "<h3><span class='material-icons'>schedule</span> Manuale</h3>"
-        "<div class='form-row'>"
-          "<div><label>Avvio (Ora)</label><input type='number' name='cfg_hour' value='%d' min='0' max='23'></div>"
-          "<div><label>Durata (Min)</label><input type='number' name='cfg_dur' value='%d' min='1' max='60'></div>"
-        "</div>"
-        "<label>Giorni Attivi:</label>"
-        "<div class='day-selector'>",
-      cfg_start_hour, cfg_duration_min
-    );
+  strcpy((char *)http, "<form method='POST'>");
+      sprintf((char *)http + strlen((char *)http),
+        "<div class='panel'>"
+          "<h3><span class='material-icons'>schedule</span> Manuale</h3>"
+          "<div class='form-row'>"
+            "<div><label>Avvio (Ora)</label><input type='number' name='cfg_hour' value='%d' min='0' max='23'></div>"
+            "<div><label>Avvio (Min)</label><input type='number' name='cfg_min' value='%d' min='0' max='59'></div>"
+            "<div><label>Durata</label><input type='number' name='cfg_dur' value='%d' min='1' max='60'></div>"
+          "</div>"
+          "<label>Giorni Attivi:</label>"
+          "<div class='day-selector'>",
+        cfg_start_hour, cfg_start_minute, cfg_duration_min // <-- PASSATI 3 PARAMETRI INVECE DI 2
+      );
     WIFI_SendData(0, (uint8_t *)http, strlen((char *)http), &SentDataLength, WIFI_WRITE_TIMEOUT);
 
     // Continuazione controllo Manuale (Checkbox Giorni)
@@ -904,6 +923,7 @@ void SaveSettings(void) {
     // Copia variabili globali nella struct temporanea
     dataToSave.magic_number = CONFIG_MAGIC;
     dataToSave.saved_start_hour = cfg_start_hour;
+    dataToSave.saved_start_minute = cfg_start_minute;
     dataToSave.saved_duration_min = cfg_duration_min;
     dataToSave.saved_days_mask = cfg_days_mask;
     dataToSave.saved_smart_active = smart_mode_active;
@@ -951,6 +971,7 @@ void LoadSettings(void) {
         printf("Trovata configurazione salvata. Caricamento...\n");
 
         cfg_start_hour = loadedData->saved_start_hour;
+        cfg_start_minute = loadedData->saved_start_minute;
         cfg_duration_min = loadedData->saved_duration_min;
         cfg_days_mask = loadedData->saved_days_mask;
         smart_mode_active = loadedData->saved_smart_active;
